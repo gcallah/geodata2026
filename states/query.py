@@ -58,12 +58,19 @@ def exists(state_code: str):
 
 def check_valid_state(state_code: str, population: int, capital: str,
                       area_sq_miles: float, name: str):
-    if exists(state_code):
-        raise ValueError(f"State code {state_code} already exists.")
     if not isinstance(state_code, str) or len(state_code) != STATE_CODE_LEN:
         raise ValueError(f"State code must be {STATE_CODE_LEN}-letter string.")
+    if exists(state_code):
+        raise ValueError(f"State code {state_code} already exists.")
     if not isinstance(population, int) or population < 0:
         raise ValueError("Population must be a non-negative integer.")
+    if not isinstance(capital, str) or not capital:
+        raise ValueError("Capital must be a non-empty string.")
+    if (not isinstance(area_sq_miles, (int, float))
+            or isinstance(area_sq_miles, bool) or area_sq_miles <= 0):
+        raise ValueError("Area must be a positive number.")
+    if not isinstance(name, str) or not name:
+        raise ValueError("Name must be a non-empty string.")
     return True
 
 
@@ -85,6 +92,17 @@ def create(state_code: str, population: int, capital: str,
         "name": name,
     }
     return STATE_TEST_DATA[state_code]
+
+
+def delete(state_code: str):
+    """
+    Delete a state entry from the test data.
+    Returns the deleted entry, or None if it did not exist.
+    """
+    if not is_db_up():
+        print("Database is down.")
+        return None
+    return STATE_TEST_DATA.pop(state_code, None)
 
 
 def main():

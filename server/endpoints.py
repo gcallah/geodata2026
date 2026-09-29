@@ -4,8 +4,8 @@ The endpoint called `endpoints` will return all available endpoints.
 """
 from http import HTTPStatus
 
-from flask import Flask  # , request
-from flask_restx import Resource, Api  # , fields  # Namespace
+from flask import Flask, request
+from flask_restx import Resource, Api, fields  # Namespace
 from flask_cors import CORS
 
 import werkzeug.exceptions as wz
@@ -52,6 +52,15 @@ class Endpoints(Resource):
         return {"Available endpoints": endpoints}
 
 
+STATE_CREATE_FLDS = api.model('CreateState', {
+    'state_code': fields.String(required=True),
+    'population': fields.Integer(required=True),
+    'capital': fields.String(required=True),
+    'area_sq_miles': fields.Float(required=True),
+    'name': fields.String(required=True),
+})
+
+
 @api.route(STATES_EP)
 class States(Resource):
     """
@@ -67,3 +76,25 @@ class States(Resource):
         if states is None:
             raise wz.ServiceUnavailable('Database may be down.')
         return {STATES_RESP: states}
+
+    @api.expect(STATE_CREATE_FLDS)
+    @api.response(HTTPStatus.CREATED.value, 'Created')
+    @api.response(HTTPStatus.BAD_REQUEST.value, 'Bad Request')
+    @api.response(HTTPStatus.SERVICE_UNAVAILABLE.value, 'Service Unavailable')
+    def post(self):
+        """
+        Add a new state.
+        """
+        data = request.get_json(silent=True) or {}
+        try:
+            new_state = sqry.create(data.get('state_code'),
+                                    data.get('population'),
+                                    data.get('capital'),
+                                    data.get('area_sq_miles'),
+                                    data.get('name'))
+        except ValueError as err:
+            raise wz.BadRequest(str(err))
+        if new_state is None:
+            raise wz.ServiceUnavailable('Database may be down.')
+        return {MESSAGE: 'State added.', STATES_RESP: new_state}, \
+            HTTPStatus.CREATED
