@@ -202,3 +202,39 @@ def test_create_db_down(temp_state):
     with patch('states.query.is_db_up', return_value=False, autospec=True):
         assert qry.create(**temp_state) is None
     assert temp_state['state_code'] not in qry.STATE_TEST_DATA
+
+
+def test_needs_db_calls_fn_when_up():
+    @qry.needs_db
+    def fn(x, y=0):
+        return x + y
+    assert fn(1, y=2) == 3
+
+
+def test_needs_db_returns_none_when_down():
+    calls = []
+
+    @qry.needs_db
+    def fn():
+        calls.append(1)
+        return 'called'
+    with patch('states.query.is_db_up', return_value=False, autospec=True):
+        assert fn() is None
+    assert calls == []
+
+
+def test_needs_db_keeps_name():
+    assert qry.create.__name__ == 'create'
+    assert 'Create a new state' in qry.create.__doc__
+
+
+@pytest.mark.parametrize('fn, args', [
+    (qry.read, ()),
+    (qry.exists, ('AL',)),
+    (qry.delete, ('AL',)),
+])
+def test_db_down_returns_none(fn, args):
+    before = dict(qry.STATE_TEST_DATA)
+    with patch('states.query.is_db_up', return_value=False, autospec=True):
+        assert fn(*args) is None
+    assert qry.STATE_TEST_DATA == before

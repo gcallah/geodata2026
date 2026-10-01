@@ -1,9 +1,26 @@
 #!/usr/bin/env python3
 
+from functools import wraps
+
 from data.db_connect import is_db_up
 
 
 STATE_CODE_LEN = 2
+
+
+def needs_db(fn):
+    """
+    Decorate any function that needs the database: if the DB is down,
+    print a message and return None instead of calling the function.
+    """
+    @wraps(fn)
+    def wrapper(*args, **kwargs):
+        if not is_db_up():
+            print("Database is down.")
+            return None
+        return fn(*args, **kwargs)
+    return wrapper
+
 
 TEST_STATE = {
     "state_code": "TS",
@@ -36,23 +53,19 @@ STATE_TEST_DATA = {
 }
 
 
+@needs_db
 def read():
     """
     Return a list of all states in the test data.
     """
-    if not is_db_up():
-        print("Database is down.")
-        return None
     return STATE_TEST_DATA
 
 
+@needs_db
 def exists(state_code: str):
     """
     Check if a state exists in the test data.
     """
-    if not is_db_up():
-        print("Database is down.")
-        return None
     return state_code in STATE_TEST_DATA
 
 
@@ -83,14 +96,12 @@ def check_valid_state(state_code: str, population: int, capital: str,
     return True
 
 
+@needs_db
 def create(state_code: str, population: int, capital: str,
            area_sq_miles: float, name: str):
     """
     Create a new state entry in the test data.
     """
-    if not is_db_up():
-        print("Database is down.")
-        return None
     # check_valid_state raises ValueError if the state is invalid, so we don't
     # need to check the return value
     check_valid_state(state_code, population, capital, area_sq_miles, name)
@@ -103,6 +114,7 @@ def create(state_code: str, population: int, capital: str,
     return STATE_TEST_DATA[state_code]
 
 
+@needs_db
 def update(state_code: str, population: int, capital: str,
            area_sq_miles: float, name: str):
     """
@@ -110,9 +122,6 @@ def update(state_code: str, population: int, capital: str,
     The state code identifies the state and cannot be changed.
     Raises ValueError if the update is invalid.
     """
-    if not is_db_up():
-        print("Database is down.")
-        return None
     check_valid_state(state_code, population, capital, area_sq_miles, name,
                       is_update=True)
     STATE_TEST_DATA[state_code] = {
@@ -124,14 +133,12 @@ def update(state_code: str, population: int, capital: str,
     return STATE_TEST_DATA[state_code]
 
 
+@needs_db
 def delete(state_code: str):
     """
     Delete a state entry from the test data.
     Returns the deleted entry, or None if it did not exist.
     """
-    if not is_db_up():
-        print("Database is down.")
-        return None
     return STATE_TEST_DATA.pop(state_code, None)
 
 
