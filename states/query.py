@@ -57,10 +57,19 @@ def exists(state_code: str):
 
 
 def check_valid_state(state_code: str, population: int, capital: str,
-                      area_sq_miles: float, name: str):
+                      area_sq_miles: float, name: str,
+                      is_update: bool = False):
+    """
+    Raise ValueError if the state data is invalid.
+    For a create, the state code must not exist yet; for an update
+    (is_update=True), it must already exist.
+    """
     if not isinstance(state_code, str) or len(state_code) != STATE_CODE_LEN:
         raise ValueError(f"State code must be {STATE_CODE_LEN}-letter string.")
-    if exists(state_code):
+    if is_update:
+        if not exists(state_code):
+            raise ValueError(f"State code {state_code} does not exist.")
+    elif exists(state_code):
         raise ValueError(f"State code {state_code} already exists.")
     if not isinstance(population, int) or population < 0:
         raise ValueError("Population must be a non-negative integer.")
@@ -79,12 +88,33 @@ def create(state_code: str, population: int, capital: str,
     """
     Create a new state entry in the test data.
     """
-    # check_valid_state raises ValueError if the state is invalid, so we don't
-    # need to check the return value
-    check_valid_state(state_code, population, capital, area_sq_miles, name)
     if not is_db_up():
         print("Database is down.")
         return None
+    # check_valid_state raises ValueError if the state is invalid, so we don't
+    # need to check the return value
+    check_valid_state(state_code, population, capital, area_sq_miles, name)
+    STATE_TEST_DATA[state_code] = {
+        "population": population,
+        "capital": capital,
+        "area_sq_miles": area_sq_miles,
+        "name": name,
+    }
+    return STATE_TEST_DATA[state_code]
+
+
+def update(state_code: str, population: int, capital: str,
+           area_sq_miles: float, name: str):
+    """
+    Update an existing state entry in the test data.
+    The state code identifies the state and cannot be changed.
+    Raises ValueError if the update is invalid.
+    """
+    if not is_db_up():
+        print("Database is down.")
+        return None
+    check_valid_state(state_code, population, capital, area_sq_miles, name,
+                      is_update=True)
     STATE_TEST_DATA[state_code] = {
         "population": population,
         "capital": capital,

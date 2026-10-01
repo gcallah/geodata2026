@@ -130,3 +130,75 @@ def test_delete_db_down(temp_state):
     with patch('states.query.is_db_up', return_value=False, autospec=True):
         assert qry.delete(temp_state['state_code']) is None
     assert temp_state['state_code'] in qry.STATE_TEST_DATA
+
+
+def test_check_valid_state_update_missing():
+    with pytest.raises(ValueError):
+        qry.check_valid_state('ZZ',
+                              TEST_ST['population'],
+                              TEST_ST['capital'],
+                              TEST_ST['area_sq_miles'],
+                              TEST_ST['name'],
+                              is_update=True)
+
+
+def test_check_valid_state_update_existing():
+    assert qry.check_valid_state('AL',
+                                 TEST_ST['population'],
+                                 TEST_ST['capital'],
+                                 TEST_ST['area_sq_miles'],
+                                 TEST_ST['name'],
+                                 is_update=True)
+
+
+def test_update(temp_state):
+    code = temp_state['state_code']
+    qry.create(**temp_state)
+    ret = qry.update(code, 2000000, 'New Capital', 60000.5, 'New Name')
+    assert qry.STATE_TEST_DATA[code] == {
+        "population": 2000000,
+        "capital": 'New Capital',
+        "area_sq_miles": 60000.5,
+        "name": 'New Name',
+    }
+    assert ret == qry.STATE_TEST_DATA[code]
+
+
+def test_update_leaves_other_states(temp_state):
+    qry.create(**temp_state)
+    others = {k: dict(v) for k, v in qry.STATE_TEST_DATA.items()
+              if k != temp_state['state_code']}
+    qry.update(temp_state['state_code'], 1, 'C', 1.0, 'N')
+    for code, data in others.items():
+        assert qry.STATE_TEST_DATA[code] == data
+
+
+def test_update_missing():
+    assert 'ZZ' not in qry.STATE_TEST_DATA
+    with pytest.raises(ValueError):
+        qry.update('ZZ', 1, 'C', 1.0, 'N')
+    assert 'ZZ' not in qry.STATE_TEST_DATA
+
+
+def test_update_invalid_leaves_state_unchanged(temp_state):
+    code = temp_state['state_code']
+    qry.create(**temp_state)
+    before = dict(qry.STATE_TEST_DATA[code])
+    with pytest.raises(ValueError):
+        qry.update(code, -1, 'C', 1.0, 'N')
+    assert qry.STATE_TEST_DATA[code] == before
+
+
+def test_update_db_down(temp_state):
+    code = temp_state['state_code']
+    qry.create(**temp_state)
+    before = dict(qry.STATE_TEST_DATA[code])
+    with patch('states.query.is_db_up', return_value=False, autospec=True):
+        assert qry.update(code, 1, 'C', 1.0, 'N') is None
+    assert qry.STATE_TEST_DATA[code] == before
+
+
+def test_create_db_down(temp_state):
+    with patch('states.query.is_db_up', return_value=False, autospec=True):
+        assert qry.create(**temp_state) is None
+    assert temp_state['state_code'] not in qry.STATE_TEST_DATA
