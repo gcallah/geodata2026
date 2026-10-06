@@ -10,6 +10,7 @@ from flask_cors import CORS
 
 import werkzeug.exceptions as wz
 
+import security.security as sec
 import states.query as sqry
 
 app = Flask(__name__)
@@ -23,6 +24,28 @@ HELLO_RESP = 'hello'
 STATES_EP = '/states'
 STATES_RESP = 'States:'
 MESSAGE = 'Message'
+USER_ID_HDR = 'X-User-Id'
+AUTH_CODE_HDR = 'X-Auth-Code'
+
+AUTH_HDRS = api.parser()
+AUTH_HDRS.add_argument(USER_ID_HDR, location='headers', required=True)
+AUTH_HDRS.add_argument(AUTH_CODE_HDR, location='headers', required=True)
+
+
+def check_permission(feature_name: str, action: str):
+    """
+    Read the user ID and auth code from the request headers and check that
+    the user may perform `action` on `feature_name`.
+    Raises 401 if credentials are missing, 403 if not permitted.
+    """
+    user_id = request.headers.get(USER_ID_HDR)
+    auth_code = request.headers.get(AUTH_CODE_HDR)
+    if not user_id or not auth_code:
+        raise wz.Unauthorized(f'{USER_ID_HDR} and {AUTH_CODE_HDR} headers '
+                              + 'are required.')
+    if not sec.is_permitted(feature_name, action, user_id,
+                            auth_code=auth_code):
+        raise wz.Forbidden('User not permitted to do this.')
 
 
 @api.route(HELLO_EP)
@@ -77,14 +100,18 @@ class States(Resource):
             raise wz.ServiceUnavailable('Database may be down.')
         return {STATES_RESP: states}
 
-    @api.expect(STATE_CREATE_FLDS)
+    @api.expect(AUTH_HDRS, STATE_CREATE_FLDS)
     @api.response(HTTPStatus.CREATED.value, 'Created')
     @api.response(HTTPStatus.BAD_REQUEST.value, 'Bad Request')
+    @api.response(HTTPStatus.UNAUTHORIZED.value, 'Unauthorized')
+    @api.response(HTTPStatus.FORBIDDEN.value, 'Forbidden')
     @api.response(HTTPStatus.SERVICE_UNAVAILABLE.value, 'Service Unavailable')
     def post(self):
         """
         Add a new state.
+        Requires X-User-Id and X-Auth-Code headers.
         """
+        check_permission(sec.STATES, sec.CREATE)
         data = request.get_json(silent=True) or {}
         try:
             new_state = sqry.create(data.get('state_code'),
