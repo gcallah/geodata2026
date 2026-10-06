@@ -22,6 +22,7 @@ ENDPOINT_RESP = 'Available endpoints'
 HELLO_EP = '/hello'
 HELLO_RESP = 'hello'
 STATES_EP = '/states'
+STATE_EP = f'{STATES_EP}/<state_code>'
 STATES_RESP = 'States:'
 MESSAGE = 'Message'
 USER_ID_HDR = 'X-User-Id'
@@ -83,6 +84,13 @@ STATE_CREATE_FLDS = api.model('CreateState', {
     'name': fields.String(required=True),
 })
 
+STATE_UPDATE_FLDS = api.model('UpdateState', {
+    'population': fields.Integer(required=True),
+    'capital': fields.String(required=True),
+    'area_sq_miles': fields.Float(required=True),
+    'name': fields.String(required=True),
+})
+
 
 @api.route(STATES_EP)
 class States(Resource):
@@ -125,3 +133,43 @@ class States(Resource):
             raise wz.ServiceUnavailable('Database may be down.')
         return {MESSAGE: 'State added.', STATES_RESP: new_state}, \
             HTTPStatus.CREATED
+
+
+@api.route(STATE_EP)
+class State(Resource):
+    """
+    Operations on a single state, identified by its state code.
+    """
+    @api.expect(AUTH_HDRS, STATE_UPDATE_FLDS)
+    @api.response(HTTPStatus.OK.value, 'Success')
+    @api.response(HTTPStatus.BAD_REQUEST.value, 'Bad Request')
+    @api.response(HTTPStatus.UNAUTHORIZED.value, 'Unauthorized')
+    @api.response(HTTPStatus.FORBIDDEN.value, 'Forbidden')
+    @api.response(HTTPStatus.NOT_FOUND.value, 'Not Found')
+    @api.response(HTTPStatus.SERVICE_UNAVAILABLE.value, 'Service Unavailable')
+    def put(self, state_code):
+        """
+        Update an existing state.
+        The state code cannot be changed.
+        Requires X-User-Id and X-Auth-Code headers.
+        """
+        check_permission(sec.STATES, sec.UPDATE)
+        data = request.get_json(silent=True) or {}
+        if data.get('state_code', state_code) != state_code:
+            raise wz.BadRequest('The state code cannot be changed.')
+        state_exists = sqry.exists(state_code)
+        if state_exists is None:
+            raise wz.ServiceUnavailable('Database may be down.')
+        if not state_exists:
+            raise wz.NotFound(f'State {state_code} not found.')
+        try:
+            updated = sqry.update(state_code,
+                                  data.get('population'),
+                                  data.get('capital'),
+                                  data.get('area_sq_miles'),
+                                  data.get('name'))
+        except ValueError as err:
+            raise wz.BadRequest(str(err))
+        if updated is None:
+            raise wz.ServiceUnavailable('Database may be down.')
+        return {MESSAGE: 'State updated.', STATES_RESP: updated}
