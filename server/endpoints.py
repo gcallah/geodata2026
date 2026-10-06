@@ -173,3 +173,25 @@ class State(Resource):
         if updated is None:
             raise wz.ServiceUnavailable('Database may be down.')
         return {MESSAGE: 'State updated.', STATES_RESP: updated}
+
+    @api.expect(AUTH_HDRS)
+    @api.response(HTTPStatus.OK.value, 'Success')
+    @api.response(HTTPStatus.UNAUTHORIZED.value, 'Unauthorized')
+    @api.response(HTTPStatus.FORBIDDEN.value, 'Forbidden')
+    @api.response(HTTPStatus.NOT_FOUND.value, 'Not Found')
+    @api.response(HTTPStatus.SERVICE_UNAVAILABLE.value, 'Service Unavailable')
+    def delete(self, state_code):
+        """
+        Delete a state.
+        Requires X-User-Id and X-Auth-Code headers.
+        """
+        check_permission(sec.STATES, sec.DELETE)
+        state_exists = sqry.exists(state_code)
+        if state_exists is None:
+            raise wz.ServiceUnavailable('Database may be down.')
+        if not state_exists:
+            raise wz.NotFound(f'State {state_code} not found.')
+        deleted = sqry.delete(state_code)
+        if deleted is None:
+            raise wz.ServiceUnavailable('Database may be down.')
+        return {MESSAGE: 'State deleted.', STATES_RESP: deleted}

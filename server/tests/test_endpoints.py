@@ -265,3 +265,87 @@ def test_put_on_states_collection_not_allowed(mock_is_db_up, existing_state):
     resp = TEST_CLIENT.put(ep.STATES_EP, json=existing_state,
                            headers=AUTH_HEADERS)
     assert resp.status_code == METHOD_NOT_ALLOWED
+
+
+@patch('states.query.is_db_up', return_value=True, autospec=True)
+def test_delete_state(mock_is_db_up, existing_state):
+    code = existing_state['state_code']
+    expected = dict(sqry.STATE_TEST_DATA[code])
+    resp = TEST_CLIENT.delete(state_url(code), headers=AUTH_HEADERS)
+    assert resp.status_code == OK
+    assert resp.get_json()[ep.STATES_RESP] == expected
+    assert code not in sqry.STATE_TEST_DATA
+
+
+@patch('states.query.is_db_up', return_value=True, autospec=True)
+def test_delete_state_leaves_other_states(mock_is_db_up, existing_state):
+    code = existing_state['state_code']
+    others = {k: dict(v) for k, v in sqry.STATE_TEST_DATA.items()
+              if k != code}
+    TEST_CLIENT.delete(state_url(code), headers=AUTH_HEADERS)
+    assert sqry.STATE_TEST_DATA == others
+
+
+@patch('states.query.is_db_up', return_value=True, autospec=True)
+def test_delete_state_not_found(mock_is_db_up):
+    assert 'ZZ' not in sqry.STATE_TEST_DATA
+    resp = TEST_CLIENT.delete(state_url('ZZ'), headers=AUTH_HEADERS)
+    assert resp.status_code == NOT_FOUND
+
+
+@patch('states.query.is_db_up', return_value=True, autospec=True)
+def test_delete_state_db_unavailable(mock_is_db_up, existing_state):
+    code = existing_state['state_code']
+    mock_is_db_up.return_value = False
+    resp = TEST_CLIENT.delete(state_url(code), headers=AUTH_HEADERS)
+    assert resp.status_code == SERVICE_UNAVAILABLE
+    assert code in sqry.STATE_TEST_DATA
+
+
+@patch('states.query.delete', return_value=None, autospec=True)
+@patch('states.query.is_db_up', return_value=True, autospec=True)
+def test_delete_state_db_down_during_delete(mock_is_db_up, mock_delete,
+                                            existing_state):
+    resp = TEST_CLIENT.delete(state_url(existing_state['state_code']),
+                              headers=AUTH_HEADERS)
+    assert resp.status_code == SERVICE_UNAVAILABLE
+
+
+@patch('states.query.is_db_up', return_value=True, autospec=True)
+@pytest.mark.parametrize('missing', [ep.USER_ID_HDR, ep.AUTH_CODE_HDR])
+def test_delete_state_missing_auth_header(mock_is_db_up, missing,
+                                          existing_state):
+    code = existing_state['state_code']
+    headers = {k: v for k, v in AUTH_HEADERS.items() if k != missing}
+    resp = TEST_CLIENT.delete(state_url(code), headers=headers)
+    assert resp.status_code == UNAUTHORIZED
+    assert code in sqry.STATE_TEST_DATA
+
+
+@patch('security.security.is_permitted', return_value=False, autospec=True)
+@patch('states.query.is_db_up', return_value=True, autospec=True)
+def test_delete_state_not_permitted(mock_is_db_up, mock_is_permitted,
+                                    existing_state):
+    code = existing_state['state_code']
+    resp = TEST_CLIENT.delete(state_url(code), headers=AUTH_HEADERS)
+    assert resp.status_code == FORBIDDEN
+    assert code in sqry.STATE_TEST_DATA
+
+
+@patch('security.security.is_permitted', return_value=True, autospec=True)
+@patch('states.query.is_db_up', return_value=True, autospec=True)
+def test_delete_state_checks_permission(mock_is_db_up, mock_is_permitted,
+                                        existing_state):
+    TEST_CLIENT.delete(state_url(existing_state['state_code']),
+                       headers=AUTH_HEADERS)
+    mock_is_permitted.assert_called_once_with(sec.STATES, sec.DELETE,
+                                              TEST_USER,
+                                              auth_code=TEST_AUTH_CODE)
+
+
+@patch('states.query.is_db_up', return_value=True, autospec=True)
+def test_delete_on_states_collection_not_allowed(mock_is_db_up,
+                                                 existing_state):
+    resp = TEST_CLIENT.delete(ep.STATES_EP, headers=AUTH_HEADERS)
+    assert resp.status_code == METHOD_NOT_ALLOWED
+    assert existing_state['state_code'] in sqry.STATE_TEST_DATA
