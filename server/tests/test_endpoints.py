@@ -11,10 +11,12 @@ from http.client import (
     UNAUTHORIZED,
 )
 
+from copy import deepcopy
 from unittest.mock import patch
 
 import pytest
 
+import counties.fields as cflds
 import counties.query as cqry
 import security.security as sec
 import server.endpoints as ep
@@ -781,3 +783,48 @@ def test_county_endpoints_listed():
     endpoints = resp.get_json()[ep.ENDPOINT_RESP]
     assert ep.COUNTIES_EP in endpoints
     assert ep.COUNTY_EP in endpoints
+    assert ep.COUNTY_FLDS_EP in endpoints
+
+
+def test_get_county_fields():
+    resp = TEST_CLIENT.get(ep.COUNTY_FLDS_EP)
+    assert resp.status_code == OK
+    assert resp.get_json()[ep.COUNTY_FLDS_RESP] == cflds.get_flds()
+
+
+def test_get_county_fields_describes_every_field():
+    resp = TEST_CLIENT.get(ep.COUNTY_FLDS_EP)
+    county_flds = resp.get_json()[ep.COUNTY_FLDS_RESP]
+    assert set(county_flds) == set(cqry.TEST_COUNTY)
+    for fld in county_flds.values():
+        assert cflds.DISP_NAME in fld
+        assert cflds.FLD_TYPE in fld
+
+
+@patch(DB_UP, return_value=False, autospec=True)
+def test_get_county_fields_db_down(mock_is_db_up):
+    """
+    The data dictionary is static, so it is served even if the DB is down.
+    """
+    resp = TEST_CLIENT.get(ep.COUNTY_FLDS_EP)
+    assert resp.status_code == OK
+
+
+def test_get_county_fields_no_auth_needed():
+    resp = TEST_CLIENT.get(ep.COUNTY_FLDS_EP)
+    assert resp.status_code == OK
+
+
+@patch(DB_UP, return_value=True, autospec=True)
+@pytest.mark.parametrize('method', ['post', 'put', 'delete'])
+def test_county_fields_read_only(mock_is_db_up, method):
+    """
+    /counties/fields only allows GET. Unlike /states/fields, no other
+    route matches it: a single county needs both a state code and a name.
+    """
+    before = deepcopy(cqry.COUNTY_TEST_DATA)
+    resp = getattr(TEST_CLIENT, method)(ep.COUNTY_FLDS_EP,
+                                        json=TEST_CTY,
+                                        headers=AUTH_HEADERS)
+    assert resp.status_code == METHOD_NOT_ALLOWED
+    assert cqry.COUNTY_TEST_DATA == before

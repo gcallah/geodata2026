@@ -10,6 +10,7 @@ from flask_cors import CORS
 
 import werkzeug.exceptions as wz
 
+import counties.fields as cflds
 import counties.query as cqry
 import security.security as sec
 import states.fields as sflds
@@ -31,6 +32,8 @@ STATE_FLDS_RESP = 'State fields:'
 COUNTIES_EP = '/counties'
 COUNTY_EP = f'{COUNTIES_EP}/<state_code>/<name>'
 COUNTIES_RESP = 'Counties:'
+COUNTY_FLDS_EP = f'{COUNTIES_EP}/fields'
+COUNTY_FLDS_RESP = 'County fields:'
 MESSAGE = 'Message'
 USER_ID_HDR = 'X-User-Id'
 AUTH_CODE_HDR = 'X-Auth-Code'
@@ -346,3 +349,17 @@ class County(Resource):
         if deleted is None:
             raise wz.ServiceUnavailable('Database may be down.')
         return {MESSAGE: 'County deleted.', COUNTIES_RESP: deleted}
+
+
+@api.route(COUNTY_FLDS_EP)
+class CountyFields(Resource):
+    """
+    Describes the fields of a county: the data dictionary.
+    """
+    @api.response(HTTPStatus.OK.value, 'Success')
+    def get(self):
+        """
+        Return the county data dictionary: for each field, its display
+        name, description, type and other display information.
+        """
+        return {COUNTY_FLDS_RESP: cflds.get_flds()}
