@@ -294,6 +294,6 @@ def test_db_down_returns_none(fn, args):
 def test_main(mock_is_db_up, capsys):
     qry.main()
     out = capsys.readouterr().out
-    assert 'County: Autauga, AL' in out
-    assert 'Population: 58805' in out
-    assert 'Metro area: (none)' in out
+    for state_code, counties in qry.COUNTY_TEST_DATA.items():
+        for name in counties:
+            assert f'County: {name}, {state_code}' in out

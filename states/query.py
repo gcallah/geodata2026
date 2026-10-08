@@ -32,7 +32,7 @@ TEST_STATE = {
 
 STATE_TEST_DATA = {
     "AL": {
-        "population": 4903185,
+        "population": 4903200,
         "capital": "Montgomery",
         "area_sq_miles": 52420,
         "name": 'Alabama',

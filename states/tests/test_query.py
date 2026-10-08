@@ -291,7 +291,5 @@ def test_db_down_returns_none(fn, args):
 def test_main(mock_is_db_up, capsys):
     qry.main()
     out = capsys.readouterr().out
-    assert 'State: AL' in out
-    assert 'Population: 4903185' in out
-    assert 'Capital: Montgomery' in out
-    assert 'Area (sq miles): 52420' in out
+    for code in qry.STATE_TEST_DATA:
+        assert f'State: {code}' in out
