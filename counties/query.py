@@ -1,0 +1,154 @@
+#!/usr/bin/env python3
+
+from states.query import needs_db, STATE_CODE_LEN
+
+
+TEST_COUNTY = {
+    "state_code": "AL",
+    "name": "Test County",
+    "population": 50000,
+    "area_sq_miles": 600.5,
+    "metro_area": "Test City, AL Metropolitan Statistical Area",
+}
+
+# County names are only unique within a state, so the data is keyed
+# first by state code, then by county name.
+COUNTY_TEST_DATA = {
+    "AL": {
+        "Autauga": {
+            "population": 58805,
+            "area_sq_miles": 594.44,
+            "metro_area": "Montgomery, AL Metropolitan Statistical Area",
+        },
+        "Baldwin": {
+            "population": 231767,
+            "area_sq_miles": 1589.78,
+            "metro_area": "Daphne-Fairhope-Foley, AL Metropolitan "
+                          "Statistical Area",
+        },
+        "Barbour": {
+            "population": 25223,
+            "area_sq_miles": 884.88,
+            "metro_area": "Eufaula, AL-GA Micropolitan Statistical Area",
+        },
+        "Bullock": {
+            "population": 10357,
+            "area_sq_miles": 622.80,
+            "metro_area": "",
+        },
+    },
+    # Add more counties as needed
+}
+
+
+@needs_db
+def read():
+    """
+    Return all counties in the test data, keyed by state code,
+    then by county name.
+    """
+    return COUNTY_TEST_DATA
+
+
+@needs_db
+def exists(state_code: str, name: str):
+    """
+    Check if a county exists in the test data.
+    """
+    return name in COUNTY_TEST_DATA.get(state_code, {})
+
+
+def check_valid_county(state_code: str, name: str, population: int,
+                       area_sq_miles: float, metro_area: str,
+                       is_update: bool = False):
+    """
+    Raise ValueError if the county data is invalid.
+    For a create, the county must not exist yet; for an update
+    (is_update=True), it must already exist.
+    A county need not be in a metro area, so metro_area may be empty.
+    """
+    if not isinstance(state_code, str) or len(state_code) != STATE_CODE_LEN:
+        raise ValueError(f"State code must be {STATE_CODE_LEN}-letter string.")
+    if not isinstance(name, str) or not name:
+        raise ValueError("Name must be a non-empty string.")
+    if is_update:
+        if not exists(state_code, name):
+            raise ValueError(f"County {name}, {state_code} does not exist.")
+    elif exists(state_code, name):
+        raise ValueError(f"County {name}, {state_code} already exists.")
+    if (not isinstance(population, int) or isinstance(population, bool)
+            or population < 0):
+        raise ValueError("Population must be a non-negative integer.")
+    if (not isinstance(area_sq_miles, (int, float))
+            or isinstance(area_sq_miles, bool) or area_sq_miles <= 0):
+        raise ValueError("Area must be a positive number.")
+    if not isinstance(metro_area, str):
+        raise ValueError("Metro area must be a string.")
+    return True
+
+
+@needs_db
+def create(state_code: str, name: str, population: int,
+           area_sq_miles: float, metro_area: str):
+    """
+    Create a new county entry in the test data.
+    """
+    # check_valid_county raises ValueError if the county is invalid, so we
+    # don't need to check the return value
+    check_valid_county(state_code, name, population, area_sq_miles,
+                       metro_area)
+    counties = COUNTY_TEST_DATA.setdefault(state_code, {})
+    counties[name] = {
+        "population": population,
+        "area_sq_miles": area_sq_miles,
+        "metro_area": metro_area,
+    }
+    return counties[name]
+
+
+@needs_db
+def update(state_code: str, name: str, population: int,
+           area_sq_miles: float, metro_area: str):
+    """
+    Update an existing county entry in the test data.
+    The state code and name identify the county and cannot be changed.
+    Raises ValueError if the update is invalid.
+    """
+    check_valid_county(state_code, name, population, area_sq_miles,
+                       metro_area, is_update=True)
+    COUNTY_TEST_DATA[state_code][name] = {
+        "population": population,
+        "area_sq_miles": area_sq_miles,
+        "metro_area": metro_area,
+    }
+    return COUNTY_TEST_DATA[state_code][name]
+
+
+@needs_db
+def delete(state_code: str, name: str):
+    """
+    Delete a county entry from the test data.
+    Returns the deleted entry, or None if it did not exist.
+    A state left with no counties is removed too.
+    """
+    counties = COUNTY_TEST_DATA.get(state_code)
+    if counties is None:
+        return None
+    deleted = counties.pop(name, None)
+    if not counties:
+        del COUNTY_TEST_DATA[state_code]
+    return deleted
+
+
+def main():
+    for state_code, counties in read().items():
+        for name, data in counties.items():
+            print(f"County: {name}, {state_code}")
+            print(f"Population: {data['population']}")
+            print(f"Area (sq miles): {data['area_sq_miles']}")
+            print(f"Metro area: {data['metro_area'] or '(none)'}")
+            print("-" * 40)
+
+
+if __name__ == "__main__":
+    main()

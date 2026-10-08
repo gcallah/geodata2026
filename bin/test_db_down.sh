@@ -3,7 +3,7 @@
 # False, to prove no test depends on the real DB check. Restores
 # data/db_connect.py afterwards, even on failure or Ctrl-C.
 #
-# Usage: bin/test_db_down.sh [PATH...]     (default: states server)
+# Usage: bin/test_db_down.sh [PATH...]     (default: states counties server)
 set -euo pipefail
 
 cd "$(dirname "$0")/.."
@@ -21,6 +21,6 @@ if git diff --quiet -- "$DB_FILE"; then
     exit 1
 fi
 
-[ $# -eq 0 ] && set -- states server
+[ $# -eq 0 ] && set -- states counties server
 echo "=== is_db_up forced to return False ==="
 bin/test.sh "$@"
