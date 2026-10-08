@@ -6,6 +6,12 @@ from data.db_connect import is_db_up
 from states.fields import (
     AREA,
     CAPITAL,
+    LATITUDE,
+    LONGITUDE,
+    MAX_LATITUDE,
+    MAX_LONGITUDE,
+    MIN_LATITUDE,
+    MIN_LONGITUDE,
     NAME,
     POPULATION,
     STATE_CODE,
@@ -33,6 +39,8 @@ TEST_STATE = {
     CAPITAL: "Test Capital",
     AREA: 50000,
     NAME: 'Test State',
+    LATITUDE: 40.0,
+    LONGITUDE: -100.0,
 }
 
 STATE_TEST_DATA = {
@@ -41,18 +49,24 @@ STATE_TEST_DATA = {
         CAPITAL: "Montgomery",
         AREA: 52420,
         NAME: 'Alabama',
+        LATITUDE: 32.318231,
+        LONGITUDE: -86.902298,
     },
     "AK": {
         POPULATION: 731545,
         CAPITAL: "Juneau",
         AREA: 665384,
         NAME: 'Alaska',
+        LATITUDE: 63.588753,
+        LONGITUDE: -154.493062,
     },
     "AZ": {
         POPULATION: 7278717,
         CAPITAL: "Phoenix",
         AREA: 113990,
         NAME: 'Arizona',
+        LATITUDE: 34.048928,
+        LONGITUDE: -111.093731,
     },
     # Add more states as needed
 }
@@ -74,9 +88,17 @@ def exists(state_code: str):
     return state_code in STATE_TEST_DATA
 
 
+def is_number(val) -> bool:
+    """
+    True if val is an int or float (but not a bool, which Python
+    counts as an int).
+    """
+    return isinstance(val, (int, float)) and not isinstance(val, bool)
+
+
 def check_valid_state(state_code: str, population: int, capital: str,
-                      area: float, name: str,
-                      is_update: bool = False):
+                      area: float, name: str, latitude: float,
+                      longitude: float, is_update: bool = False):
     """
     Raise ValueError if the state data is invalid.
     For a create, the state code must not exist yet; for an update
@@ -93,47 +115,59 @@ def check_valid_state(state_code: str, population: int, capital: str,
         raise ValueError("Population must be a non-negative integer.")
     if not isinstance(capital, str) or not capital:
         raise ValueError("Capital must be a non-empty string.")
-    if (not isinstance(area, (int, float))
-            or isinstance(area, bool) or area <= 0):
+    if not is_number(area) or area <= 0:
         raise ValueError("Area must be a positive number.")
     if not isinstance(name, str) or not name:
         raise ValueError("Name must be a non-empty string.")
+    if (not is_number(latitude)
+            or not MIN_LATITUDE <= latitude <= MAX_LATITUDE):
+        raise ValueError(f"Latitude must be a number from {MIN_LATITUDE} "
+                         + f"to {MAX_LATITUDE}.")
+    if (not is_number(longitude)
+            or not MIN_LONGITUDE <= longitude <= MAX_LONGITUDE):
+        raise ValueError(f"Longitude must be a number from {MIN_LONGITUDE} "
+                         + f"to {MAX_LONGITUDE}.")
     return True
 
 
 @needs_db
 def create(state_code: str, population: int, capital: str,
-           area: float, name: str):
+           area: float, name: str, latitude: float, longitude: float):
     """
     Create a new state entry in the test data.
     """
     # check_valid_state raises ValueError if the state is invalid, so we don't
     # need to check the return value
-    check_valid_state(state_code, population, capital, area, name)
+    check_valid_state(state_code, population, capital, area, name,
+                      latitude, longitude)
     STATE_TEST_DATA[state_code] = {
         POPULATION: population,
         CAPITAL: capital,
         AREA: area,
         NAME: name,
+        LATITUDE: latitude,
+        LONGITUDE: longitude,
     }
     return STATE_TEST_DATA[state_code]
 
 
 @needs_db
 def update(state_code: str, population: int, capital: str,
-           area: float, name: str):
+           area: float, name: str, latitude: float, longitude: float):
     """
     Update an existing state entry in the test data.
     The state code identifies the state and cannot be changed.
     Raises ValueError if the update is invalid.
     """
     check_valid_state(state_code, population, capital, area, name,
-                      is_update=True)
+                      latitude, longitude, is_update=True)
     STATE_TEST_DATA[state_code] = {
         POPULATION: population,
         CAPITAL: capital,
         AREA: area,
         NAME: name,
+        LATITUDE: latitude,
+        LONGITUDE: longitude,
     }
     return STATE_TEST_DATA[state_code]
 

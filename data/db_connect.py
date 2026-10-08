@@ -9,7 +9,7 @@ import pymongo as pm
 LOCAL = "0"
 CLOUD = "1"
 
-SE_DB = 'seDB'
+SE_DB = 'geodata2026'
 
 client = None
 
@@ -61,6 +61,13 @@ def create(collection, doc, db=SE_DB):
     """
     print(f'{db=}')
     return client[db][collection].insert_one(doc)
+
+
+def drop(collection, db=SE_DB):
+    """
+    Drop the whole collection, if it exists.
+    """
+    client[db][collection].drop()
 
 
 def read_one(collection, filt, db=SE_DB):

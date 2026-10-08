@@ -14,7 +14,9 @@ def test_check_valid_state(mock_is_db_up):
                                 TEST_ST[qry.POPULATION],
                                 TEST_ST[qry.CAPITAL],
                                 TEST_ST[qry.AREA],
-                                TEST_ST[qry.NAME])
+                                TEST_ST[qry.NAME],
+                                TEST_ST[qry.LATITUDE],
+                                TEST_ST[qry.LONGITUDE])
     assert ret
 
 
@@ -25,7 +27,9 @@ def test_check_valid_state_bad_pop(mock_is_db_up):
                                     -23423,
                                     TEST_ST[qry.CAPITAL],
                                     TEST_ST[qry.AREA],
-                                    TEST_ST[qry.NAME])
+                                    TEST_ST[qry.NAME],
+                                    TEST_ST[qry.LATITUDE],
+                                    TEST_ST[qry.LONGITUDE])
 
 
 @patch('states.query.is_db_up', return_value=True, autospec=True)
@@ -35,7 +39,9 @@ def test_check_valid_state_code_too_short(mock_is_db_up):
                                     TEST_ST[qry.POPULATION],
                                     TEST_ST[qry.CAPITAL],
                                     TEST_ST[qry.AREA],
-                                    TEST_ST[qry.NAME])
+                                    TEST_ST[qry.NAME],
+                                    TEST_ST[qry.LATITUDE],
+                                    TEST_ST[qry.LONGITUDE])
 
 
 @patch('states.query.is_db_up', return_value=True, autospec=True)
@@ -45,7 +51,9 @@ def test_check_valid_state_code_too_long(mock_is_db_up):
                                     TEST_ST[qry.POPULATION],
                                     TEST_ST[qry.CAPITAL],
                                     TEST_ST[qry.AREA],
-                                    TEST_ST[qry.NAME])
+                                    TEST_ST[qry.NAME],
+                                    TEST_ST[qry.LATITUDE],
+                                    TEST_ST[qry.LONGITUDE])
 
 
 @patch('states.query.is_db_up', return_value=True, autospec=True)
@@ -61,7 +69,9 @@ def test_check_valid_state_dup_code(mock_is_db_up):
                               TEST_ST[qry.POPULATION],
                               TEST_ST[qry.CAPITAL],
                               TEST_ST[qry.AREA],
-                              TEST_ST[qry.NAME])
+                              TEST_ST[qry.NAME],
+                              TEST_ST[qry.LATITUDE],
+                              TEST_ST[qry.LONGITUDE])
 
 
 @patch('states.query.is_db_up', return_value=True, autospec=True)
@@ -71,7 +81,9 @@ def test_check_valid_state_no_capital(mock_is_db_up):
                               TEST_ST[qry.POPULATION],
                               '',
                               TEST_ST[qry.AREA],
-                              TEST_ST[qry.NAME])
+                              TEST_ST[qry.NAME],
+                              TEST_ST[qry.LATITUDE],
+                              TEST_ST[qry.LONGITUDE])
 
 
 @patch('states.query.is_db_up', return_value=True, autospec=True)
@@ -81,7 +93,9 @@ def test_check_valid_state_bad_area(mock_is_db_up):
                               TEST_ST[qry.POPULATION],
                               TEST_ST[qry.CAPITAL],
                               0,
-                              TEST_ST[qry.NAME])
+                              TEST_ST[qry.NAME],
+                              TEST_ST[qry.LATITUDE],
+                              TEST_ST[qry.LONGITUDE])
 
 
 @patch('states.query.is_db_up', return_value=True, autospec=True)
@@ -91,7 +105,9 @@ def test_check_valid_state_no_name(mock_is_db_up):
                               TEST_ST[qry.POPULATION],
                               TEST_ST[qry.CAPITAL],
                               TEST_ST[qry.AREA],
-                              '')
+                              '',
+                              TEST_ST[qry.LATITUDE],
+                              TEST_ST[qry.LONGITUDE])
 
 
 @pytest.fixture
@@ -179,6 +195,8 @@ def test_check_valid_state_update_missing(mock_is_db_up):
                               TEST_ST[qry.CAPITAL],
                               TEST_ST[qry.AREA],
                               TEST_ST[qry.NAME],
+                              TEST_ST[qry.LATITUDE],
+                              TEST_ST[qry.LONGITUDE],
                               is_update=True)
 
 
@@ -189,6 +207,8 @@ def test_check_valid_state_update_existing(mock_is_db_up):
                                  TEST_ST[qry.CAPITAL],
                                  TEST_ST[qry.AREA],
                                  TEST_ST[qry.NAME],
+                                 TEST_ST[qry.LATITUDE],
+                                 TEST_ST[qry.LONGITUDE],
                                  is_update=True)
 
 
@@ -196,12 +216,15 @@ def test_check_valid_state_update_existing(mock_is_db_up):
 def test_update(mock_is_db_up, temp_state):
     code = temp_state[qry.STATE_CODE]
     qry.create(**temp_state)
-    ret = qry.update(code, 2000000, 'New Capital', 60000.5, 'New Name')
+    ret = qry.update(code, 2000000, 'New Capital', 60000.5, 'New Name',
+                     33.5, -87.5)
     assert qry.STATE_TEST_DATA[code] == {
         qry.POPULATION: 2000000,
         qry.CAPITAL: 'New Capital',
         qry.AREA: 60000.5,
         qry.NAME: 'New Name',
+        qry.LATITUDE: 33.5,
+        qry.LONGITUDE: -87.5,
     }
     assert ret == qry.STATE_TEST_DATA[code]
 
@@ -211,7 +234,7 @@ def test_update_leaves_other_states(mock_is_db_up, temp_state):
     qry.create(**temp_state)
     others = {k: dict(v) for k, v in qry.STATE_TEST_DATA.items()
               if k != temp_state[qry.STATE_CODE]}
-    qry.update(temp_state[qry.STATE_CODE], 1, 'C', 1.0, 'N')
+    qry.update(temp_state[qry.STATE_CODE], 1, 'C', 1.0, 'N', 0.0, 0.0)
     for code, data in others.items():
         assert qry.STATE_TEST_DATA[code] == data
 
@@ -220,7 +243,7 @@ def test_update_leaves_other_states(mock_is_db_up, temp_state):
 def test_update_missing(mock_is_db_up):
     assert 'ZZ' not in qry.STATE_TEST_DATA
     with pytest.raises(ValueError):
-        qry.update('ZZ', 1, 'C', 1.0, 'N')
+        qry.update('ZZ', 1, 'C', 1.0, 'N', 0.0, 0.0)
     assert 'ZZ' not in qry.STATE_TEST_DATA
 
 
@@ -230,7 +253,7 @@ def test_update_invalid_leaves_state_unchanged(mock_is_db_up, temp_state):
     qry.create(**temp_state)
     before = dict(qry.STATE_TEST_DATA[code])
     with pytest.raises(ValueError):
-        qry.update(code, -1, 'C', 1.0, 'N')
+        qry.update(code, -1, 'C', 1.0, 'N', 0.0, 0.0)
     assert qry.STATE_TEST_DATA[code] == before
 
 
@@ -240,7 +263,7 @@ def test_update_db_down(mock_is_db_up, temp_state):
     qry.create(**temp_state)
     before = dict(qry.STATE_TEST_DATA[code])
     mock_is_db_up.return_value = False
-    assert qry.update(code, 1, 'C', 1.0, 'N') is None
+    assert qry.update(code, 1, 'C', 1.0, 'N', 0.0, 0.0) is None
     assert qry.STATE_TEST_DATA[code] == before
 
 
@@ -293,3 +316,68 @@ def test_main(mock_is_db_up, capsys):
     out = capsys.readouterr().out
     for code in qry.STATE_TEST_DATA:
         assert f'State: {code}' in out
+
+
+@pytest.mark.parametrize('val, expected', [
+    (1, True),
+    (1.5, True),
+    (-2, True),
+    (True, False),
+    ('1', False),
+    (None, False),
+])
+def test_is_number(val, expected):
+    assert qry.is_number(val) is expected
+
+
+def state_args(**changes):
+    """
+    Return TEST_STATE's fields as check_valid_state arguments,
+    with any given changes (keyed by field name) applied.
+    """
+    return {**TEST_ST, **changes}
+
+
+@patch('states.query.is_db_up', return_value=True, autospec=True)
+@pytest.mark.parametrize('fld_nm, val', [
+    (qry.LATITUDE, qry.MIN_LATITUDE),
+    (qry.LATITUDE, qry.MAX_LATITUDE),
+    (qry.LATITUDE, 0),
+    (qry.LONGITUDE, qry.MIN_LONGITUDE),
+    (qry.LONGITUDE, qry.MAX_LONGITUDE),
+    (qry.LONGITUDE, 0),
+])
+def test_check_valid_state_lat_long_bounds_ok(mock_is_db_up, fld_nm, val):
+    assert qry.check_valid_state(**state_args(**{fld_nm: val}))
+
+
+@patch('states.query.is_db_up', return_value=True, autospec=True)
+@pytest.mark.parametrize('fld_nm, val', [
+    (qry.LATITUDE, qry.MIN_LATITUDE - 0.1),
+    (qry.LATITUDE, qry.MAX_LATITUDE + 0.1),
+    (qry.LATITUDE, '40'),
+    (qry.LATITUDE, None),
+    (qry.LATITUDE, True),
+    (qry.LONGITUDE, qry.MIN_LONGITUDE - 0.1),
+    (qry.LONGITUDE, qry.MAX_LONGITUDE + 0.1),
+    (qry.LONGITUDE, '-100'),
+    (qry.LONGITUDE, None),
+    (qry.LONGITUDE, False),
+])
+def test_check_valid_state_bad_lat_long(mock_is_db_up, fld_nm, val):
+    with pytest.raises(ValueError):
+        qry.check_valid_state(**state_args(**{fld_nm: val}))
+
+
+@patch('states.query.is_db_up', return_value=True, autospec=True)
+def test_create_stores_lat_long(mock_is_db_up, temp_state):
+    ret = qry.create(**temp_state)
+    assert ret[qry.LATITUDE] == temp_state[qry.LATITUDE]
+    assert ret[qry.LONGITUDE] == temp_state[qry.LONGITUDE]
+
+
+@patch('states.query.is_db_up', return_value=True, autospec=True)
+def test_create_bad_lat_long_not_stored(mock_is_db_up, temp_state):
+    with pytest.raises(ValueError):
+        qry.create(**state_args(**{qry.LATITUDE: 91}))
+    assert temp_state[qry.STATE_CODE] not in qry.STATE_TEST_DATA

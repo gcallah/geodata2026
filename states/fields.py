@@ -23,6 +23,14 @@ from common.fields import (
 
 # State-only field names:
 CAPITAL = 'capital'
+LATITUDE = 'latitude'
+LONGITUDE = 'longitude'
+
+# Field values:
+MIN_LATITUDE = -90
+MAX_LATITUDE = 90
+MIN_LONGITUDE = -180
+MAX_LONGITUDE = 180
 
 STATE_FLDS = {
     STATE_CODE: {
@@ -52,6 +60,22 @@ STATE_FLDS = {
         DESCR: 'The total area of the state in square miles.',
         FLD_TYPE: FLOAT,
         DEC_PLACES: 2,
+        JUSTIFICATION: RIGHT,
+    },
+    LATITUDE: {
+        DISP_NAME: 'Latitude',
+        DESCR: 'The latitude of the center of the state, in degrees '
+               + '(-90 to 90).',
+        FLD_TYPE: FLOAT,
+        DEC_PLACES: 6,
+        JUSTIFICATION: RIGHT,
+    },
+    LONGITUDE: {
+        DISP_NAME: 'Longitude',
+        DESCR: 'The longitude of the center of the state, in degrees '
+               + '(-180 to 180).',
+        FLD_TYPE: FLOAT,
+        DEC_PLACES: 6,
         JUSTIFICATION: RIGHT,
     },
 }

@@ -92,6 +92,8 @@ STATE_CREATE_FLDS = api.model('CreateState', {
     sqry.CAPITAL: fields.String(required=True),
     sqry.AREA: fields.Float(required=True),
     sqry.NAME: fields.String(required=True),
+    sqry.LATITUDE: fields.Float(required=True),
+    sqry.LONGITUDE: fields.Float(required=True),
 })
 
 STATE_UPDATE_FLDS = api.model('UpdateState', {
@@ -99,6 +101,8 @@ STATE_UPDATE_FLDS = api.model('UpdateState', {
     sqry.CAPITAL: fields.String(required=True),
     sqry.AREA: fields.Float(required=True),
     sqry.NAME: fields.String(required=True),
+    sqry.LATITUDE: fields.Float(required=True),
+    sqry.LONGITUDE: fields.Float(required=True),
 })
 
 
@@ -136,7 +140,9 @@ class States(Resource):
                                     data.get(sqry.POPULATION),
                                     data.get(sqry.CAPITAL),
                                     data.get(sqry.AREA),
-                                    data.get(sqry.NAME))
+                                    data.get(sqry.NAME),
+                                    data.get(sqry.LATITUDE),
+                                    data.get(sqry.LONGITUDE))
         except ValueError as err:
             raise wz.BadRequest(str(err))
         if new_state is None:
@@ -177,7 +183,9 @@ class State(Resource):
                                   data.get(sqry.POPULATION),
                                   data.get(sqry.CAPITAL),
                                   data.get(sqry.AREA),
-                                  data.get(sqry.NAME))
+                                  data.get(sqry.NAME),
+                                  data.get(sqry.LATITUDE),
+                                  data.get(sqry.LONGITUDE))
         except ValueError as err:
             raise wz.BadRequest(str(err))
         if updated is None:

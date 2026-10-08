@@ -1,9 +1,31 @@
 #!/usr/bin/env python3
-# This is a python script to load raw_data/states.csv
-
+"""
+Load raw_data/states.csv into the states collection in MongoDB,
+replacing whatever is there. The CSV's columns are renamed to our
+field names; fields the CSV lacks get '' (strings) or 0 (numbers).
+"""
 
 import csv
 import os
+
+import data.db_connect as dbc
+from states.fields import (
+    AREA,
+    CAPITAL,
+    LATITUDE,
+    LONGITUDE,
+    NAME,
+    POPULATION,
+    STATE_CODE,
+)
+
+STATES_COLLECT = 'USStates'
+
+# CSV column names:
+CSV_ABBREV = 'Abbrev'
+CSV_LATITUDE = 'Latitude'
+CSV_LONGITUDE = 'Longitude'
+CSV_STATE = 'State'
 
 
 def load_states(file_path):
@@ -21,6 +43,33 @@ def load_states(file_path):
     return states
 
 
+def row_to_state(row: dict) -> dict:
+    """
+    Convert one CSV row to a state record using our field names.
+    """
+    return {
+        STATE_CODE: row[CSV_ABBREV],
+        NAME: row[CSV_STATE],
+        LATITUDE: float(row[CSV_LATITUDE]),
+        LONGITUDE: float(row[CSV_LONGITUDE]),
+        POPULATION: 0,
+        CAPITAL: '',
+        AREA: 0,
+    }
+
+
+def store_states(states: list, collection=STATES_COLLECT) -> int:
+    """
+    Replace the contents of the states collection with `states`.
+    Returns the number of states stored.
+    """
+    dbc.connect_db()
+    dbc.drop(collection)
+    for state in states:
+        dbc.create(collection, state)
+    return len(states)
+
+
 def main():
     # accept the file path as an argument
     if len(os.sys.argv) > 1:
@@ -29,12 +78,9 @@ def main():
         print("USAGE: python load.py <path_to_states_csv>")
         exit(1)
 
-    # Load states from the CSV file
-    states = load_states(file_path)
-
-    # Print the loaded states
-    for state in states:
-        print(state)
+    states = [row_to_state(row) for row in load_states(file_path)]
+    count = store_states(states)
+    print(f"Stored {count} states in {dbc.SE_DB}.{STATES_COLLECT}.")
 
 
 if __name__ == "__main__":

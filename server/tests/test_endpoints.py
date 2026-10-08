@@ -77,6 +77,25 @@ def test_create_state_bad_data(mock_is_db_up, temp_state):
     assert resp.status_code == BAD_REQUEST
 
 
+@patch('states.query.is_db_up', return_value=True, autospec=True)
+@pytest.mark.parametrize('fld_nm', [sqry.LATITUDE, sqry.LONGITUDE])
+def test_create_state_missing_lat_long(mock_is_db_up, fld_nm, temp_state):
+    del temp_state[fld_nm]
+    resp = TEST_CLIENT.post(ep.STATES_EP, json=temp_state,
+                            headers=AUTH_HEADERS)
+    assert resp.status_code == BAD_REQUEST
+    assert not sqry.exists(temp_state[sqry.STATE_CODE])
+
+
+@patch('states.query.is_db_up', return_value=True, autospec=True)
+def test_create_state_stores_lat_long(mock_is_db_up, temp_state):
+    resp = TEST_CLIENT.post(ep.STATES_EP, json=temp_state,
+                            headers=AUTH_HEADERS)
+    stored = resp.get_json()[ep.STATES_RESP]
+    assert stored[sqry.LATITUDE] == temp_state[sqry.LATITUDE]
+    assert stored[sqry.LONGITUDE] == temp_state[sqry.LONGITUDE]
+
+
 @patch('states.query.is_db_up', return_value=False, autospec=True)
 def test_create_state_db_unavailable(mock_is_db_up, temp_state):
     resp = TEST_CLIENT.post(ep.STATES_EP, json=temp_state,
@@ -154,6 +173,8 @@ def updated_fields():
         sqry.CAPITAL: 'New Capital',
         sqry.AREA: 60000.5,
         sqry.NAME: 'New Name',
+        sqry.LATITUDE: 33.5,
+        sqry.LONGITUDE: -87.5,
     }
 
 
@@ -204,6 +225,17 @@ def test_update_state_bad_data(mock_is_db_up, existing_state):
     before = dict(sqry.STATE_TEST_DATA[code])
     body = updated_fields()
     body[sqry.POPULATION] = -1
+    resp = TEST_CLIENT.put(state_url(code), json=body, headers=AUTH_HEADERS)
+    assert resp.status_code == BAD_REQUEST
+    assert sqry.STATE_TEST_DATA[code] == before
+
+
+@patch('states.query.is_db_up', return_value=True, autospec=True)
+def test_update_state_bad_longitude(mock_is_db_up, existing_state):
+    code = existing_state[sqry.STATE_CODE]
+    before = dict(sqry.STATE_TEST_DATA[code])
+    body = updated_fields()
+    body[sqry.LONGITUDE] = 181
     resp = TEST_CLIENT.put(state_url(code), json=body, headers=AUTH_HEADERS)
     assert resp.status_code == BAD_REQUEST
     assert sqry.STATE_TEST_DATA[code] == before
