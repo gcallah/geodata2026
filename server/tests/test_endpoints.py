@@ -428,6 +428,16 @@ def test_create_county_bad_data(mock_is_db_up, temp_county):
 
 
 @patch(DB_UP, return_value=True, autospec=True)
+def test_create_county_state_not_found(mock_is_db_up, temp_county):
+    temp_county['state_code'] = 'ZZ'
+    assert not sqry.exists('ZZ')
+    resp = TEST_CLIENT.post(ep.COUNTIES_EP, json=temp_county,
+                            headers=AUTH_HEADERS)
+    assert resp.status_code == NOT_FOUND
+    assert not county_exists('ZZ')
+
+
+@patch(DB_UP, return_value=True, autospec=True)
 def test_create_county_dup(mock_is_db_up, existing_county):
     before = dict(stored_county())
     resp = TEST_CLIENT.post(ep.COUNTIES_EP, json=existing_county,

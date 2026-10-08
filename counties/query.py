@@ -1,6 +1,14 @@
 #!/usr/bin/env python3
 
+import states.query as sqry
 from states.query import needs_db, STATE_CODE_LEN
+
+
+class NotFoundError(LookupError):
+    """
+    Raised when something a county depends on, such as its state,
+    does not exist.
+    """
 
 
 TEST_COUNTY = {
@@ -63,8 +71,9 @@ def check_valid_county(state_code: str, name: str, population: int,
                        is_update: bool = False):
     """
     Raise ValueError if the county data is invalid.
-    For a create, the county must not exist yet; for an update
-    (is_update=True), it must already exist.
+    For a create, the state must exist (else NotFoundError is raised) and
+    the county must not exist yet; for an update (is_update=True), the
+    county must already exist.
     A county need not be in a metro area, so metro_area may be empty.
     """
     if not isinstance(state_code, str) or len(state_code) != STATE_CODE_LEN:
@@ -74,8 +83,11 @@ def check_valid_county(state_code: str, name: str, population: int,
     if is_update:
         if not exists(state_code, name):
             raise ValueError(f"County {name}, {state_code} does not exist.")
-    elif exists(state_code, name):
-        raise ValueError(f"County {name}, {state_code} already exists.")
+    else:
+        if not sqry.exists(state_code):
+            raise NotFoundError(f"State {state_code} not found.")
+        if exists(state_code, name):
+            raise ValueError(f"County {name}, {state_code} already exists.")
     if (not isinstance(population, int) or isinstance(population, bool)
             or population < 0):
         raise ValueError("Population must be a non-negative integer.")

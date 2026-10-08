@@ -4,6 +4,7 @@ from unittest.mock import patch
 import pytest
 
 import counties.query as qry
+import states.query as sqry
 
 # counties.query uses needs_db from states.query, so that is where
 # is_db_up must be patched.
@@ -91,6 +92,21 @@ def test_check_valid_county_bad_field(mock_is_db_up, field, bad_value):
 
 
 @patch(DB_UP, return_value=True, autospec=True)
+def test_check_valid_county_state_not_found(mock_is_db_up):
+    with pytest.raises(qry.NotFoundError):
+        qry.check_valid_county(**valid_args(state_code='ZZ'))
+
+
+@patch(DB_UP, return_value=True, autospec=True)
+def test_check_valid_county_bad_code_before_state_check(mock_is_db_up):
+    """
+    A malformed state code is bad data (ValueError), not a missing state.
+    """
+    with pytest.raises(ValueError):
+        qry.check_valid_county(**valid_args(state_code='ZZZ'))
+
+
+@patch(DB_UP, return_value=True, autospec=True)
 def test_check_valid_county_dup(mock_is_db_up):
     with pytest.raises(ValueError):
         qry.check_valid_county(**valid_args(name='Autauga'))
@@ -122,12 +138,21 @@ def test_create(mock_is_db_up, temp_county):
 
 
 @patch(DB_UP, return_value=True, autospec=True)
-def test_create_new_state(mock_is_db_up):
-    assert 'ZZ' not in qry.COUNTY_TEST_DATA
-    qry.create(**valid_args(state_code='ZZ'))
-    assert qry.exists('ZZ', TEST_NAME)
-    qry.delete('ZZ', TEST_NAME)
-    assert 'ZZ' not in qry.COUNTY_TEST_DATA
+def test_create_first_county_in_state(mock_is_db_up):
+    assert 'AK' not in qry.COUNTY_TEST_DATA
+    qry.create(**valid_args(state_code='AK'))
+    assert qry.exists('AK', TEST_NAME)
+    qry.delete('AK', TEST_NAME)
+    assert 'AK' not in qry.COUNTY_TEST_DATA
+
+
+@patch(DB_UP, return_value=True, autospec=True)
+def test_create_state_not_found(mock_is_db_up):
+    assert not sqry.exists('ZZ')
+    before = deepcopy(qry.COUNTY_TEST_DATA)
+    with pytest.raises(qry.NotFoundError):
+        qry.create(**valid_args(state_code='ZZ'))
+    assert qry.COUNTY_TEST_DATA == before
 
 
 @patch(DB_UP, return_value=True, autospec=True)

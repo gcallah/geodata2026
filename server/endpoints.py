@@ -238,10 +238,12 @@ class Counties(Resource):
     @api.response(HTTPStatus.BAD_REQUEST.value, 'Bad Request')
     @api.response(HTTPStatus.UNAUTHORIZED.value, 'Unauthorized')
     @api.response(HTTPStatus.FORBIDDEN.value, 'Forbidden')
+    @api.response(HTTPStatus.NOT_FOUND.value, 'Not Found')
     @api.response(HTTPStatus.SERVICE_UNAVAILABLE.value, 'Service Unavailable')
     def post(self):
         """
         Add a new county.
+        Its state must already exist, else 404 Not Found.
         Requires X-User-Id and X-Auth-Code headers.
         """
         check_permission(sec.COUNTIES, sec.CREATE)
@@ -252,6 +254,8 @@ class Counties(Resource):
                                      data.get('population'),
                                      data.get('area_sq_miles'),
                                      data.get('metro_area'))
+        except cqry.NotFoundError as err:
+            raise wz.NotFound(str(err))
         except ValueError as err:
             raise wz.BadRequest(str(err))
         if new_county is None:
