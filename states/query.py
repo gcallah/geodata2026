@@ -3,16 +3,14 @@
 from functools import wraps
 
 from data.db_connect import is_db_up
-
-
-STATE_CODE_LEN = 2
-
-# Field names:
-STATE_CODE = 'state_code'
-POPULATION = 'population'
-CAPITAL = 'capital'
-AREA = 'area'
-NAME = 'name'
+from states.fields import (
+    AREA,
+    CAPITAL,
+    NAME,
+    POPULATION,
+    STATE_CODE,
+    STATE_CODE_LEN,
+)
 
 
 def needs_db(fn):
