@@ -1,15 +1,15 @@
 #!/usr/bin/env python3
 
 import states.query as sqry
-from states.query import needs_db, STATE_CODE_LEN
-
-
-# Field names:
-STATE_CODE = 'state_code'
-NAME = 'name'
-POPULATION = 'population'
-AREA = 'area'
-METRO_AREA = 'metro_area'
+from states.query import needs_db
+from counties.fields import (
+    AREA,
+    METRO_AREA,
+    NAME,
+    POPULATION,
+    STATE_CODE,
+    STATE_CODE_LEN,
+)
 
 
 class NotFoundError(LookupError):

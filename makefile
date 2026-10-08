@@ -4,6 +4,7 @@ include common.mk
 API_DIR = server
 DB_DIR = data
 SEC_DIR = security
+COMMON_DIR = common
 STATES_DIR = states
 COUNTIES_DIR = counties
 REQ_DIR = .
@@ -18,6 +19,7 @@ github: FORCE
 
 all_tests: FORCE
 	cd $(API_DIR); make tests
+	cd $(COMMON_DIR); make tests
 	cd $(STATES_DIR); make tests
 	cd $(COUNTIES_DIR); make tests
 

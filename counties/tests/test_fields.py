@@ -1,36 +1,38 @@
 import pytest
 
+import counties.fields as flds
+import counties.query as qry
 import common.fields as cmn
-import states.fields as flds
-import states.query as qry
 
 
-def test_fields_match_test_state():
+def test_fields_match_test_county():
     """
-    The data dictionary and the test state must describe the same fields.
+    The data dictionary and the test county must describe the same fields.
     """
-    assert set(flds.STATE_FLDS) == set(qry.TEST_STATE)
+    assert set(flds.COUNTY_FLDS) == set(qry.TEST_COUNTY)
 
 
-def test_fields_match_state_data():
+def test_fields_match_county_data():
     """
-    Every stored state has exactly the non-key fields in the dictionary.
+    Every stored county has exactly the non-key fields in the dictionary.
+    The state code and name are the keys.
     """
-    non_key_flds = set(flds.STATE_FLDS) - {flds.STATE_CODE}
-    for data in qry.STATE_TEST_DATA.values():
-        assert set(data) == non_key_flds
+    non_key_flds = set(flds.COUNTY_FLDS) - {flds.STATE_CODE, flds.NAME}
+    for counties in qry.COUNTY_TEST_DATA.values():
+        for data in counties.values():
+            assert set(data) == non_key_flds
 
 
-@pytest.mark.parametrize('fld_nm', list(flds.STATE_FLDS))
+@pytest.mark.parametrize('fld_nm', list(flds.COUNTY_FLDS))
 def test_field_is_described(fld_nm):
-    fld = flds.STATE_FLDS[fld_nm]
+    fld = flds.COUNTY_FLDS[fld_nm]
     assert fld[flds.DISP_NAME]
     assert fld[flds.DESCR]
     assert fld[flds.FLD_TYPE] in (flds.STR, flds.INT, flds.FLOAT)
 
 
 def test_state_code_max_len():
-    state_code = flds.STATE_FLDS[flds.STATE_CODE]
+    state_code = flds.COUNTY_FLDS[flds.STATE_CODE]
     assert state_code[flds.MAX_LEN] == flds.STATE_CODE_LEN
 
 
@@ -42,6 +44,7 @@ def test_shared_fields_from_common(const):
 
 def test_query_uses_fields_constants():
     assert qry.STATE_CODE is flds.STATE_CODE
+    assert qry.METRO_AREA is flds.METRO_AREA
     assert qry.STATE_CODE_LEN == flds.STATE_CODE_LEN
 
 

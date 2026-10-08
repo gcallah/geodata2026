@@ -1,5 +1,5 @@
 """
-The data dictionary for states.
+The data dictionary for counties.
 Shared constants and field names come from common/fields.py.
 """
 
@@ -21,42 +21,43 @@ from common.fields import (
     STR,
 )
 
-# State-only field names:
-CAPITAL = 'capital'
+# County-only field names:
+METRO_AREA = 'metro_area'
 
-STATE_FLDS = {
+COUNTY_FLDS = {
     STATE_CODE: {
         DISP_NAME: 'State Code',
-        DESCR: 'The two-letter postal code for the state.',
+        DESCR: 'The two-letter postal code for the state the county is in.',
         FLD_TYPE: STR,
         MAX_LEN: STATE_CODE_LEN,
     },
     NAME: {
         DISP_NAME: 'Name',
-        DESCR: 'The name of the state.',
-        FLD_TYPE: STR,
-    },
-    CAPITAL: {
-        DISP_NAME: 'Capital',
-        DESCR: 'The capital city of the state.',
+        DESCR: 'The name of the county, unique within its state.',
         FLD_TYPE: STR,
     },
     POPULATION: {
         DISP_NAME: 'Population',
-        DESCR: 'The number of people living in the state.',
+        DESCR: 'The number of people living in the county.',
         FLD_TYPE: INT,
         JUSTIFICATION: RIGHT,
     },
     AREA: {
         DISP_NAME: 'Area (sq miles)',
-        DESCR: 'The total area of the state in square miles.',
+        DESCR: 'The total area of the county in square miles.',
         FLD_TYPE: FLOAT,
         DEC_PLACES: 2,
         JUSTIFICATION: RIGHT,
+    },
+    METRO_AREA: {
+        DISP_NAME: 'Metro Area',
+        DESCR: 'The metropolitan or micropolitan statistical area the '
+               + 'county is in, or empty if none.',
+        FLD_TYPE: STR,
     },
 }
 
 
 def get_flds():
-    """Return the state field dictionary."""
-    return STATE_FLDS
+    """Return the county field dictionary."""
+    return COUNTY_FLDS
