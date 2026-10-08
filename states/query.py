@@ -11,7 +11,7 @@ STATE_CODE_LEN = 2
 STATE_CODE = 'state_code'
 POPULATION = 'population'
 CAPITAL = 'capital'
-AREA = 'area_sq_miles'
+AREA = 'area'
 NAME = 'name'
 
 
@@ -77,7 +77,7 @@ def exists(state_code: str):
 
 
 def check_valid_state(state_code: str, population: int, capital: str,
-                      area_sq_miles: float, name: str,
+                      area: float, name: str,
                       is_update: bool = False):
     """
     Raise ValueError if the state data is invalid.
@@ -95,8 +95,8 @@ def check_valid_state(state_code: str, population: int, capital: str,
         raise ValueError("Population must be a non-negative integer.")
     if not isinstance(capital, str) or not capital:
         raise ValueError("Capital must be a non-empty string.")
-    if (not isinstance(area_sq_miles, (int, float))
-            or isinstance(area_sq_miles, bool) or area_sq_miles <= 0):
+    if (not isinstance(area, (int, float))
+            or isinstance(area, bool) or area <= 0):
         raise ValueError("Area must be a positive number.")
     if not isinstance(name, str) or not name:
         raise ValueError("Name must be a non-empty string.")
@@ -105,17 +105,17 @@ def check_valid_state(state_code: str, population: int, capital: str,
 
 @needs_db
 def create(state_code: str, population: int, capital: str,
-           area_sq_miles: float, name: str):
+           area: float, name: str):
     """
     Create a new state entry in the test data.
     """
     # check_valid_state raises ValueError if the state is invalid, so we don't
     # need to check the return value
-    check_valid_state(state_code, population, capital, area_sq_miles, name)
+    check_valid_state(state_code, population, capital, area, name)
     STATE_TEST_DATA[state_code] = {
         POPULATION: population,
         CAPITAL: capital,
-        AREA: area_sq_miles,
+        AREA: area,
         NAME: name,
     }
     return STATE_TEST_DATA[state_code]
@@ -123,18 +123,18 @@ def create(state_code: str, population: int, capital: str,
 
 @needs_db
 def update(state_code: str, population: int, capital: str,
-           area_sq_miles: float, name: str):
+           area: float, name: str):
     """
     Update an existing state entry in the test data.
     The state code identifies the state and cannot be changed.
     Raises ValueError if the update is invalid.
     """
-    check_valid_state(state_code, population, capital, area_sq_miles, name,
+    check_valid_state(state_code, population, capital, area, name,
                       is_update=True)
     STATE_TEST_DATA[state_code] = {
         POPULATION: population,
         CAPITAL: capital,
-        AREA: area_sq_miles,
+        AREA: area,
         NAME: name,
     }
     return STATE_TEST_DATA[state_code]
