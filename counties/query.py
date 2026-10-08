@@ -4,6 +4,14 @@ import states.query as sqry
 from states.query import needs_db, STATE_CODE_LEN
 
 
+# Field names:
+STATE_CODE = 'state_code'
+NAME = 'name'
+POPULATION = 'population'
+AREA = 'area_sq_miles'
+METRO_AREA = 'metro_area'
+
+
 class NotFoundError(LookupError):
     """
     Raised when something a county depends on, such as its state,
@@ -12,11 +20,11 @@ class NotFoundError(LookupError):
 
 
 TEST_COUNTY = {
-    "state_code": "AL",
-    "name": "Test County",
-    "population": 50000,
-    "area_sq_miles": 600.5,
-    "metro_area": "Test City, AL Metropolitan Statistical Area",
+    STATE_CODE: "AL",
+    NAME: "Test County",
+    POPULATION: 50000,
+    AREA: 600.5,
+    METRO_AREA: "Test City, AL Metropolitan Statistical Area",
 }
 
 # County names are only unique within a state, so the data is keyed
@@ -24,25 +32,25 @@ TEST_COUNTY = {
 COUNTY_TEST_DATA = {
     "AL": {
         "Autauga": {
-            "population": 58805,
-            "area_sq_miles": 594.44,
-            "metro_area": "Montgomery, AL Metropolitan Statistical Area",
+            POPULATION: 58805,
+            AREA: 594.44,
+            METRO_AREA: "Montgomery, AL Metropolitan Statistical Area",
         },
         "Baldwin": {
-            "population": 231767,
-            "area_sq_miles": 1589.78,
-            "metro_area": "Daphne-Fairhope-Foley, AL Metropolitan "
-                          "Statistical Area",
+            POPULATION: 231767,
+            AREA: 1589.78,
+            METRO_AREA: "Daphne-Fairhope-Foley, AL Metropolitan "
+                        "Statistical Area",
         },
         "Barbour": {
-            "population": 25223,
-            "area_sq_miles": 884.88,
-            "metro_area": "Eufaula, AL-GA Micropolitan Statistical Area",
+            POPULATION: 25223,
+            AREA: 884.88,
+            METRO_AREA: "Eufaula, AL-GA Micropolitan Statistical Area",
         },
         "Bullock": {
-            "population": 10357,
-            "area_sq_miles": 622.80,
-            "metro_area": "",
+            POPULATION: 10357,
+            AREA: 622.80,
+            METRO_AREA: "",
         },
     },
     # Add more counties as needed
@@ -119,9 +127,9 @@ def create(state_code: str, name: str, population: int,
                        metro_area)
     counties = COUNTY_TEST_DATA.setdefault(state_code, {})
     counties[name] = {
-        "population": population,
-        "area_sq_miles": area_sq_miles,
-        "metro_area": metro_area,
+        POPULATION: population,
+        AREA: area_sq_miles,
+        METRO_AREA: metro_area,
     }
     return counties[name]
 
@@ -137,9 +145,9 @@ def update(state_code: str, name: str, population: int,
     check_valid_county(state_code, name, population, area_sq_miles,
                        metro_area, is_update=True)
     COUNTY_TEST_DATA[state_code][name] = {
-        "population": population,
-        "area_sq_miles": area_sq_miles,
-        "metro_area": metro_area,
+        POPULATION: population,
+        AREA: area_sq_miles,
+        METRO_AREA: metro_area,
     }
     return COUNTY_TEST_DATA[state_code][name]
 
@@ -164,9 +172,9 @@ def main():
     for state_code, counties in read().items():
         for name, data in counties.items():
             print(f"County: {name}, {state_code}")
-            print(f"Population: {data['population']}")
-            print(f"Area (sq miles): {data['area_sq_miles']}")
-            print(f"Metro area: {data['metro_area'] or '(none)'}")
+            print(f"Population: {data[POPULATION]}")
+            print(f"Area (sq miles): {data[AREA]}")
+            print(f"Metro area: {data[METRO_AREA] or '(none)'}")
             print("-" * 40)
 
 

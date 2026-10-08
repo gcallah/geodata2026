@@ -11,17 +11,17 @@ import states.query as sqry
 DB_UP = 'states.query.is_db_up'
 
 TEST_CTY = qry.TEST_COUNTY
-TEST_ST_CODE = TEST_CTY['state_code']
-TEST_NAME = TEST_CTY['name']
+TEST_ST_CODE = TEST_CTY[qry.STATE_CODE]
+TEST_NAME = TEST_CTY[qry.NAME]
 
 
-def valid_args(**changes):
+def valid_args(changes=None):
     """
     Return TEST_COUNTY's fields as check_valid_county arguments,
-    with any given changes applied.
+    with any given changes (a dict keyed by field name) applied.
     """
     args = dict(TEST_CTY)
-    args.update(changes)
+    args.update(changes or {})
     return args
 
 
@@ -68,7 +68,7 @@ def test_has_counties_none(mock_is_db_up):
 
 @patch(DB_UP, return_value=True, autospec=True)
 def test_has_counties_after_last_deleted(mock_is_db_up):
-    qry.create(**valid_args(state_code='AK'))
+    qry.create(**valid_args({qry.STATE_CODE: 'AK'}))
     assert qry.has_counties('AK')
     qry.delete('AK', TEST_NAME)
     assert not qry.has_counties('AK')
@@ -81,39 +81,39 @@ def test_check_valid_county(mock_is_db_up):
 
 @patch(DB_UP, return_value=True, autospec=True)
 def test_check_valid_county_no_metro_area(mock_is_db_up):
-    assert qry.check_valid_county(**valid_args(metro_area=''))
+    assert qry.check_valid_county(**valid_args({qry.METRO_AREA: ''}))
 
 
 @patch(DB_UP, return_value=True, autospec=True)
 def test_check_valid_county_int_area(mock_is_db_up):
-    assert qry.check_valid_county(**valid_args(area_sq_miles=600))
+    assert qry.check_valid_county(**valid_args({qry.AREA: 600}))
 
 
 @patch(DB_UP, return_value=True, autospec=True)
 @pytest.mark.parametrize('field, bad_value', [
-    ('state_code', ''),
-    ('state_code', 'X' * qry.STATE_CODE_LEN * 2),
-    ('state_code', 12),
-    ('name', ''),
-    ('name', None),
-    ('population', -1),
-    ('population', 1.5),
-    ('population', True),
-    ('area_sq_miles', 0),
-    ('area_sq_miles', -1.5),
-    ('area_sq_miles', '600'),
-    ('area_sq_miles', True),
-    ('metro_area', None),
+    (qry.STATE_CODE, ''),
+    (qry.STATE_CODE, 'X' * qry.STATE_CODE_LEN * 2),
+    (qry.STATE_CODE, 12),
+    (qry.NAME, ''),
+    (qry.NAME, None),
+    (qry.POPULATION, -1),
+    (qry.POPULATION, 1.5),
+    (qry.POPULATION, True),
+    (qry.AREA, 0),
+    (qry.AREA, -1.5),
+    (qry.AREA, '600'),
+    (qry.AREA, True),
+    (qry.METRO_AREA, None),
 ])
 def test_check_valid_county_bad_field(mock_is_db_up, field, bad_value):
     with pytest.raises(ValueError):
-        qry.check_valid_county(**valid_args(**{field: bad_value}))
+        qry.check_valid_county(**valid_args({field: bad_value}))
 
 
 @patch(DB_UP, return_value=True, autospec=True)
 def test_check_valid_county_state_not_found(mock_is_db_up):
     with pytest.raises(qry.NotFoundError):
-        qry.check_valid_county(**valid_args(state_code='ZZ'))
+        qry.check_valid_county(**valid_args({qry.STATE_CODE: 'ZZ'}))
 
 
 @patch(DB_UP, return_value=True, autospec=True)
@@ -122,19 +122,19 @@ def test_check_valid_county_bad_code_before_state_check(mock_is_db_up):
     A malformed state code is bad data (ValueError), not a missing state.
     """
     with pytest.raises(ValueError):
-        qry.check_valid_county(**valid_args(state_code='ZZZ'))
+        qry.check_valid_county(**valid_args({qry.STATE_CODE: 'ZZZ'}))
 
 
 @patch(DB_UP, return_value=True, autospec=True)
 def test_check_valid_county_dup(mock_is_db_up):
     with pytest.raises(ValueError):
-        qry.check_valid_county(**valid_args(name='Autauga'))
+        qry.check_valid_county(**valid_args({qry.NAME: 'Autauga'}))
 
 
 @patch(DB_UP, return_value=True, autospec=True)
 def test_check_valid_county_same_name_other_state(mock_is_db_up):
-    assert qry.check_valid_county(**valid_args(state_code='AK',
-                                               name='Autauga'))
+    assert qry.check_valid_county(**valid_args({qry.STATE_CODE: 'AK',
+                                                qry.NAME: 'Autauga'}))
 
 
 @patch(DB_UP, return_value=True, autospec=True)
@@ -145,21 +145,21 @@ def test_check_valid_county_update_missing(mock_is_db_up):
 
 @patch(DB_UP, return_value=True, autospec=True)
 def test_check_valid_county_update_existing(mock_is_db_up):
-    assert qry.check_valid_county(**valid_args(name='Autauga'),
+    assert qry.check_valid_county(**valid_args({qry.NAME: 'Autauga'}),
                                   is_update=True)
 
 
 @patch(DB_UP, return_value=True, autospec=True)
 def test_create(mock_is_db_up, temp_county):
     ret = qry.create(**temp_county)
-    assert ret['population'] == temp_county['population']
+    assert ret[qry.POPULATION] == temp_county[qry.POPULATION]
     assert qry.exists(TEST_ST_CODE, TEST_NAME)
 
 
 @patch(DB_UP, return_value=True, autospec=True)
 def test_create_first_county_in_state(mock_is_db_up):
     assert 'AK' not in qry.COUNTY_TEST_DATA
-    qry.create(**valid_args(state_code='AK'))
+    qry.create(**valid_args({qry.STATE_CODE: 'AK'}))
     assert qry.exists('AK', TEST_NAME)
     qry.delete('AK', TEST_NAME)
     assert 'AK' not in qry.COUNTY_TEST_DATA
@@ -170,7 +170,7 @@ def test_create_state_not_found(mock_is_db_up):
     assert not sqry.exists('ZZ')
     before = deepcopy(qry.COUNTY_TEST_DATA)
     with pytest.raises(qry.NotFoundError):
-        qry.create(**valid_args(state_code='ZZ'))
+        qry.create(**valid_args({qry.STATE_CODE: 'ZZ'}))
     assert qry.COUNTY_TEST_DATA == before
 
 
@@ -185,7 +185,7 @@ def test_create_dup(mock_is_db_up, temp_county):
 def test_create_invalid(mock_is_db_up):
     before = deepcopy(qry.COUNTY_TEST_DATA)
     with pytest.raises(ValueError):
-        qry.create(**valid_args(population=-1))
+        qry.create(**valid_args({qry.POPULATION: -1}))
     assert qry.COUNTY_TEST_DATA == before
 
 
@@ -201,9 +201,9 @@ def test_update(mock_is_db_up, temp_county):
     qry.create(**temp_county)
     ret = qry.update(TEST_ST_CODE, TEST_NAME, 60000, 700.25, '')
     assert qry.COUNTY_TEST_DATA[TEST_ST_CODE][TEST_NAME] == {
-        "population": 60000,
-        "area_sq_miles": 700.25,
-        "metro_area": '',
+        qry.POPULATION: 60000,
+        qry.AREA: 700.25,
+        qry.METRO_AREA: '',
     }
     assert ret == qry.COUNTY_TEST_DATA[TEST_ST_CODE][TEST_NAME]
 
@@ -249,7 +249,7 @@ def test_update_db_down(mock_is_db_up, temp_county):
 def test_delete(mock_is_db_up, temp_county):
     qry.create(**temp_county)
     deleted = qry.delete(TEST_ST_CODE, TEST_NAME)
-    assert deleted['population'] == temp_county['population']
+    assert deleted[qry.POPULATION] == temp_county[qry.POPULATION]
     assert TEST_NAME not in qry.COUNTY_TEST_DATA[TEST_ST_CODE]
     assert not qry.exists(TEST_ST_CODE, TEST_NAME)
 

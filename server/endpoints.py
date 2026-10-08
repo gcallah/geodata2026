@@ -81,18 +81,18 @@ class Endpoints(Resource):
 
 
 STATE_CREATE_FLDS = api.model('CreateState', {
-    'state_code': fields.String(required=True),
-    'population': fields.Integer(required=True),
-    'capital': fields.String(required=True),
-    'area_sq_miles': fields.Float(required=True),
-    'name': fields.String(required=True),
+    sqry.STATE_CODE: fields.String(required=True),
+    sqry.POPULATION: fields.Integer(required=True),
+    sqry.CAPITAL: fields.String(required=True),
+    sqry.AREA: fields.Float(required=True),
+    sqry.NAME: fields.String(required=True),
 })
 
 STATE_UPDATE_FLDS = api.model('UpdateState', {
-    'population': fields.Integer(required=True),
-    'capital': fields.String(required=True),
-    'area_sq_miles': fields.Float(required=True),
-    'name': fields.String(required=True),
+    sqry.POPULATION: fields.Integer(required=True),
+    sqry.CAPITAL: fields.String(required=True),
+    sqry.AREA: fields.Float(required=True),
+    sqry.NAME: fields.String(required=True),
 })
 
 
@@ -126,11 +126,11 @@ class States(Resource):
         check_permission(sec.STATES, sec.CREATE)
         data = request.get_json(silent=True) or {}
         try:
-            new_state = sqry.create(data.get('state_code'),
-                                    data.get('population'),
-                                    data.get('capital'),
-                                    data.get('area_sq_miles'),
-                                    data.get('name'))
+            new_state = sqry.create(data.get(sqry.STATE_CODE),
+                                    data.get(sqry.POPULATION),
+                                    data.get(sqry.CAPITAL),
+                                    data.get(sqry.AREA),
+                                    data.get(sqry.NAME))
         except ValueError as err:
             raise wz.BadRequest(str(err))
         if new_state is None:
@@ -159,7 +159,7 @@ class State(Resource):
         """
         check_permission(sec.STATES, sec.UPDATE)
         data = request.get_json(silent=True) or {}
-        if data.get('state_code', state_code) != state_code:
+        if data.get(sqry.STATE_CODE, state_code) != state_code:
             raise wz.BadRequest('The state code cannot be changed.')
         state_exists = sqry.exists(state_code)
         if state_exists is None:
@@ -168,10 +168,10 @@ class State(Resource):
             raise wz.NotFound(f'State {state_code} not found.')
         try:
             updated = sqry.update(state_code,
-                                  data.get('population'),
-                                  data.get('capital'),
-                                  data.get('area_sq_miles'),
-                                  data.get('name'))
+                                  data.get(sqry.POPULATION),
+                                  data.get(sqry.CAPITAL),
+                                  data.get(sqry.AREA),
+                                  data.get(sqry.NAME))
         except ValueError as err:
             raise wz.BadRequest(str(err))
         if updated is None:
@@ -207,17 +207,17 @@ class State(Resource):
 
 
 COUNTY_CREATE_FLDS = api.model('CreateCounty', {
-    'state_code': fields.String(required=True),
-    'name': fields.String(required=True),
-    'population': fields.Integer(required=True),
-    'area_sq_miles': fields.Float(required=True),
-    'metro_area': fields.String(required=True),
+    cqry.STATE_CODE: fields.String(required=True),
+    cqry.NAME: fields.String(required=True),
+    cqry.POPULATION: fields.Integer(required=True),
+    cqry.AREA: fields.Float(required=True),
+    cqry.METRO_AREA: fields.String(required=True),
 })
 
 COUNTY_UPDATE_FLDS = api.model('UpdateCounty', {
-    'population': fields.Integer(required=True),
-    'area_sq_miles': fields.Float(required=True),
-    'metro_area': fields.String(required=True),
+    cqry.POPULATION: fields.Integer(required=True),
+    cqry.AREA: fields.Float(required=True),
+    cqry.METRO_AREA: fields.String(required=True),
 })
 
 
@@ -254,11 +254,11 @@ class Counties(Resource):
         check_permission(sec.COUNTIES, sec.CREATE)
         data = request.get_json(silent=True) or {}
         try:
-            new_county = cqry.create(data.get('state_code'),
-                                     data.get('name'),
-                                     data.get('population'),
-                                     data.get('area_sq_miles'),
-                                     data.get('metro_area'))
+            new_county = cqry.create(data.get(cqry.STATE_CODE),
+                                     data.get(cqry.NAME),
+                                     data.get(cqry.POPULATION),
+                                     data.get(cqry.AREA),
+                                     data.get(cqry.METRO_AREA))
         except cqry.NotFoundError as err:
             raise wz.NotFound(str(err))
         except ValueError as err:
@@ -289,8 +289,8 @@ class County(Resource):
         """
         check_permission(sec.COUNTIES, sec.UPDATE)
         data = request.get_json(silent=True) or {}
-        if (data.get('state_code', state_code) != state_code
-                or data.get('name', name) != name):
+        if (data.get(cqry.STATE_CODE, state_code) != state_code
+                or data.get(cqry.NAME, name) != name):
             raise wz.BadRequest('The state code and name cannot be changed.')
         county_exists = cqry.exists(state_code, name)
         if county_exists is None:
@@ -299,9 +299,9 @@ class County(Resource):
             raise wz.NotFound(f'County {name}, {state_code} not found.')
         try:
             updated = cqry.update(state_code, name,
-                                  data.get('population'),
-                                  data.get('area_sq_miles'),
-                                  data.get('metro_area'))
+                                  data.get(cqry.POPULATION),
+                                  data.get(cqry.AREA),
+                                  data.get(cqry.METRO_AREA))
         except ValueError as err:
             raise wz.BadRequest(str(err))
         if updated is None:

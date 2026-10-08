@@ -55,7 +55,7 @@ def test_get_states_db_unavailable(mock_is_db_up):
 def temp_state():
     yield dict(sqry.TEST_STATE)
     with patch('states.query.is_db_up', return_value=True, autospec=True):
-        sqry.delete(sqry.TEST_STATE['state_code'])
+        sqry.delete(sqry.TEST_STATE[sqry.STATE_CODE])
 
 
 @patch('states.query.is_db_up', return_value=True, autospec=True)
@@ -63,12 +63,12 @@ def test_create_state(mock_is_db_up, temp_state):
     resp = TEST_CLIENT.post(ep.STATES_EP, json=temp_state,
                            headers=AUTH_HEADERS)
     assert resp.status_code == CREATED
-    assert sqry.exists(temp_state['state_code'])
+    assert sqry.exists(temp_state[sqry.STATE_CODE])
 
 
 @patch('states.query.is_db_up', return_value=True, autospec=True)
 def test_create_state_bad_data(mock_is_db_up, temp_state):
-    temp_state['population'] = -1
+    temp_state[sqry.POPULATION] = -1
     resp = TEST_CLIENT.post(ep.STATES_EP, json=temp_state,
                            headers=AUTH_HEADERS)
     assert resp.status_code == BAD_REQUEST
@@ -88,7 +88,7 @@ def test_create_state_missing_auth_header(mock_is_db_up, missing,
     headers = {k: v for k, v in AUTH_HEADERS.items() if k != missing}
     resp = TEST_CLIENT.post(ep.STATES_EP, json=temp_state, headers=headers)
     assert resp.status_code == UNAUTHORIZED
-    assert not sqry.exists(temp_state['state_code'])
+    assert not sqry.exists(temp_state[sqry.STATE_CODE])
 
 
 @patch('states.query.is_db_up', return_value=True, autospec=True)
@@ -97,7 +97,7 @@ def test_create_state_empty_auth_header(mock_is_db_up, temp_state):
     headers[ep.AUTH_CODE_HDR] = ''
     resp = TEST_CLIENT.post(ep.STATES_EP, json=temp_state, headers=headers)
     assert resp.status_code == UNAUTHORIZED
-    assert not sqry.exists(temp_state['state_code'])
+    assert not sqry.exists(temp_state[sqry.STATE_CODE])
 
 
 @patch('states.query.is_db_up', return_value=True, autospec=True)
@@ -111,7 +111,7 @@ def test_create_state_creds_not_in_body(mock_is_db_up, temp_state):
     body[ep.AUTH_CODE_HDR] = TEST_AUTH_CODE
     resp = TEST_CLIENT.post(ep.STATES_EP, json=body)
     assert resp.status_code == UNAUTHORIZED
-    assert not sqry.exists(temp_state['state_code'])
+    assert not sqry.exists(temp_state[sqry.STATE_CODE])
 
 
 @patch('security.security.is_permitted', return_value=False, autospec=True)
@@ -121,7 +121,7 @@ def test_create_state_not_permitted(mock_is_db_up, mock_is_permitted,
     resp = TEST_CLIENT.post(ep.STATES_EP, json=temp_state,
                             headers=AUTH_HEADERS)
     assert resp.status_code == FORBIDDEN
-    assert not sqry.exists(temp_state['state_code'])
+    assert not sqry.exists(temp_state[sqry.STATE_CODE])
 
 
 @patch('security.security.is_permitted', return_value=True, autospec=True)
@@ -147,16 +147,16 @@ def state_url(state_code):
 
 def updated_fields():
     return {
-        'population': 2000000,
-        'capital': 'New Capital',
-        'area_sq_miles': 60000.5,
-        'name': 'New Name',
+        sqry.POPULATION: 2000000,
+        sqry.CAPITAL: 'New Capital',
+        sqry.AREA: 60000.5,
+        sqry.NAME: 'New Name',
     }
 
 
 @patch('states.query.is_db_up', return_value=True, autospec=True)
 def test_update_state(mock_is_db_up, existing_state):
-    code = existing_state['state_code']
+    code = existing_state[sqry.STATE_CODE]
     resp = TEST_CLIENT.put(state_url(code), json=updated_fields(),
                            headers=AUTH_HEADERS)
     assert resp.status_code == OK
@@ -166,9 +166,9 @@ def test_update_state(mock_is_db_up, existing_state):
 
 @patch('states.query.is_db_up', return_value=True, autospec=True)
 def test_update_state_matching_code_in_body(mock_is_db_up, existing_state):
-    code = existing_state['state_code']
+    code = existing_state[sqry.STATE_CODE]
     body = updated_fields()
-    body['state_code'] = code
+    body[sqry.STATE_CODE] = code
     resp = TEST_CLIENT.put(state_url(code), json=body, headers=AUTH_HEADERS)
     assert resp.status_code == OK
     assert sqry.STATE_TEST_DATA[code] == updated_fields()
@@ -176,10 +176,10 @@ def test_update_state_matching_code_in_body(mock_is_db_up, existing_state):
 
 @patch('states.query.is_db_up', return_value=True, autospec=True)
 def test_update_state_cannot_change_code(mock_is_db_up, existing_state):
-    code = existing_state['state_code']
+    code = existing_state[sqry.STATE_CODE]
     before = dict(sqry.STATE_TEST_DATA[code])
     body = updated_fields()
-    body['state_code'] = 'ZZ'
+    body[sqry.STATE_CODE] = 'ZZ'
     resp = TEST_CLIENT.put(state_url(code), json=body, headers=AUTH_HEADERS)
     assert resp.status_code == BAD_REQUEST
     assert sqry.STATE_TEST_DATA[code] == before
@@ -188,7 +188,7 @@ def test_update_state_cannot_change_code(mock_is_db_up, existing_state):
 
 @patch('states.query.is_db_up', return_value=True, autospec=True)
 def test_update_state_not_found(mock_is_db_up, temp_state):
-    code = temp_state['state_code']
+    code = temp_state[sqry.STATE_CODE]
     resp = TEST_CLIENT.put(state_url(code), json=updated_fields(),
                            headers=AUTH_HEADERS)
     assert resp.status_code == NOT_FOUND
@@ -197,10 +197,10 @@ def test_update_state_not_found(mock_is_db_up, temp_state):
 
 @patch('states.query.is_db_up', return_value=True, autospec=True)
 def test_update_state_bad_data(mock_is_db_up, existing_state):
-    code = existing_state['state_code']
+    code = existing_state[sqry.STATE_CODE]
     before = dict(sqry.STATE_TEST_DATA[code])
     body = updated_fields()
-    body['population'] = -1
+    body[sqry.POPULATION] = -1
     resp = TEST_CLIENT.put(state_url(code), json=body, headers=AUTH_HEADERS)
     assert resp.status_code == BAD_REQUEST
     assert sqry.STATE_TEST_DATA[code] == before
@@ -208,7 +208,7 @@ def test_update_state_bad_data(mock_is_db_up, existing_state):
 
 @patch('states.query.is_db_up', return_value=True, autospec=True)
 def test_update_state_db_unavailable(mock_is_db_up, existing_state):
-    code = existing_state['state_code']
+    code = existing_state[sqry.STATE_CODE]
     before = dict(sqry.STATE_TEST_DATA[code])
     mock_is_db_up.return_value = False
     resp = TEST_CLIENT.put(state_url(code), json=updated_fields(),
@@ -221,7 +221,7 @@ def test_update_state_db_unavailable(mock_is_db_up, existing_state):
 @patch('states.query.is_db_up', return_value=True, autospec=True)
 def test_update_state_db_down_during_update(mock_is_db_up, mock_update,
                                             existing_state):
-    resp = TEST_CLIENT.put(state_url(existing_state['state_code']),
+    resp = TEST_CLIENT.put(state_url(existing_state[sqry.STATE_CODE]),
                            json=updated_fields(), headers=AUTH_HEADERS)
     assert resp.status_code == SERVICE_UNAVAILABLE
 
@@ -230,7 +230,7 @@ def test_update_state_db_down_during_update(mock_is_db_up, mock_update,
 @pytest.mark.parametrize('missing', [ep.USER_ID_HDR, ep.AUTH_CODE_HDR])
 def test_update_state_missing_auth_header(mock_is_db_up, missing,
                                           existing_state):
-    code = existing_state['state_code']
+    code = existing_state[sqry.STATE_CODE]
     before = dict(sqry.STATE_TEST_DATA[code])
     headers = {k: v for k, v in AUTH_HEADERS.items() if k != missing}
     resp = TEST_CLIENT.put(state_url(code), json=updated_fields(),
@@ -243,7 +243,7 @@ def test_update_state_missing_auth_header(mock_is_db_up, missing,
 @patch('states.query.is_db_up', return_value=True, autospec=True)
 def test_update_state_not_permitted(mock_is_db_up, mock_is_permitted,
                                     existing_state):
-    code = existing_state['state_code']
+    code = existing_state[sqry.STATE_CODE]
     before = dict(sqry.STATE_TEST_DATA[code])
     resp = TEST_CLIENT.put(state_url(code), json=updated_fields(),
                            headers=AUTH_HEADERS)
@@ -255,7 +255,7 @@ def test_update_state_not_permitted(mock_is_db_up, mock_is_permitted,
 @patch('states.query.is_db_up', return_value=True, autospec=True)
 def test_update_state_checks_permission(mock_is_db_up, mock_is_permitted,
                                         existing_state):
-    TEST_CLIENT.put(state_url(existing_state['state_code']),
+    TEST_CLIENT.put(state_url(existing_state[sqry.STATE_CODE]),
                     json=updated_fields(), headers=AUTH_HEADERS)
     mock_is_permitted.assert_called_once_with(sec.STATES, sec.UPDATE,
                                               TEST_USER,
@@ -271,7 +271,7 @@ def test_put_on_states_collection_not_allowed(mock_is_db_up, existing_state):
 
 @patch('states.query.is_db_up', return_value=True, autospec=True)
 def test_delete_state(mock_is_db_up, existing_state):
-    code = existing_state['state_code']
+    code = existing_state[sqry.STATE_CODE]
     expected = dict(sqry.STATE_TEST_DATA[code])
     resp = TEST_CLIENT.delete(state_url(code), headers=AUTH_HEADERS)
     assert resp.status_code == OK
@@ -281,7 +281,7 @@ def test_delete_state(mock_is_db_up, existing_state):
 
 @patch('states.query.is_db_up', return_value=True, autospec=True)
 def test_delete_state_leaves_other_states(mock_is_db_up, existing_state):
-    code = existing_state['state_code']
+    code = existing_state[sqry.STATE_CODE]
     others = {k: dict(v) for k, v in sqry.STATE_TEST_DATA.items()
               if k != code}
     TEST_CLIENT.delete(state_url(code), headers=AUTH_HEADERS)
@@ -306,7 +306,7 @@ def test_delete_state_not_found(mock_is_db_up):
 
 @patch('states.query.is_db_up', return_value=True, autospec=True)
 def test_delete_state_db_unavailable(mock_is_db_up, existing_state):
-    code = existing_state['state_code']
+    code = existing_state[sqry.STATE_CODE]
     mock_is_db_up.return_value = False
     resp = TEST_CLIENT.delete(state_url(code), headers=AUTH_HEADERS)
     assert resp.status_code == SERVICE_UNAVAILABLE
@@ -317,7 +317,7 @@ def test_delete_state_db_unavailable(mock_is_db_up, existing_state):
 @patch('states.query.is_db_up', return_value=True, autospec=True)
 def test_delete_state_db_down_during_delete(mock_is_db_up, mock_delete,
                                             existing_state):
-    resp = TEST_CLIENT.delete(state_url(existing_state['state_code']),
+    resp = TEST_CLIENT.delete(state_url(existing_state[sqry.STATE_CODE]),
                               headers=AUTH_HEADERS)
     assert resp.status_code == SERVICE_UNAVAILABLE
 
@@ -326,7 +326,7 @@ def test_delete_state_db_down_during_delete(mock_is_db_up, mock_delete,
 @pytest.mark.parametrize('missing', [ep.USER_ID_HDR, ep.AUTH_CODE_HDR])
 def test_delete_state_missing_auth_header(mock_is_db_up, missing,
                                           existing_state):
-    code = existing_state['state_code']
+    code = existing_state[sqry.STATE_CODE]
     headers = {k: v for k, v in AUTH_HEADERS.items() if k != missing}
     resp = TEST_CLIENT.delete(state_url(code), headers=headers)
     assert resp.status_code == UNAUTHORIZED
@@ -337,7 +337,7 @@ def test_delete_state_missing_auth_header(mock_is_db_up, missing,
 @patch('states.query.is_db_up', return_value=True, autospec=True)
 def test_delete_state_not_permitted(mock_is_db_up, mock_is_permitted,
                                     existing_state):
-    code = existing_state['state_code']
+    code = existing_state[sqry.STATE_CODE]
     resp = TEST_CLIENT.delete(state_url(code), headers=AUTH_HEADERS)
     assert resp.status_code == FORBIDDEN
     assert code in sqry.STATE_TEST_DATA
@@ -347,7 +347,7 @@ def test_delete_state_not_permitted(mock_is_db_up, mock_is_permitted,
 @patch('states.query.is_db_up', return_value=True, autospec=True)
 def test_delete_state_checks_permission(mock_is_db_up, mock_is_permitted,
                                         existing_state):
-    TEST_CLIENT.delete(state_url(existing_state['state_code']),
+    TEST_CLIENT.delete(state_url(existing_state[sqry.STATE_CODE]),
                        headers=AUTH_HEADERS)
     mock_is_permitted.assert_called_once_with(sec.STATES, sec.DELETE,
                                               TEST_USER,
@@ -359,7 +359,7 @@ def test_delete_on_states_collection_not_allowed(mock_is_db_up,
                                                  existing_state):
     resp = TEST_CLIENT.delete(ep.STATES_EP, headers=AUTH_HEADERS)
     assert resp.status_code == METHOD_NOT_ALLOWED
-    assert existing_state['state_code'] in sqry.STATE_TEST_DATA
+    assert existing_state[sqry.STATE_CODE] in sqry.STATE_TEST_DATA
 
 
 # counties.query uses needs_db from states.query, so that is where
@@ -367,8 +367,8 @@ def test_delete_on_states_collection_not_allowed(mock_is_db_up,
 DB_UP = 'states.query.is_db_up'
 
 TEST_CTY = cqry.TEST_COUNTY
-CTY_ST_CODE = TEST_CTY['state_code']
-CTY_NAME = TEST_CTY['name']
+CTY_ST_CODE = TEST_CTY[cqry.STATE_CODE]
+CTY_NAME = TEST_CTY[cqry.NAME]
 
 
 def county_url(state_code, name):
@@ -385,9 +385,9 @@ def county_exists(state_code=CTY_ST_CODE, name=CTY_NAME):
 
 def updated_county_fields():
     return {
-        'population': 60000,
-        'area_sq_miles': 700.25,
-        'metro_area': '',
+        cqry.POPULATION: 60000,
+        cqry.AREA: 700.25,
+        cqry.METRO_AREA: '',
     }
 
 
@@ -430,7 +430,7 @@ def test_create_county(mock_is_db_up, temp_county):
 
 @patch(DB_UP, return_value=True, autospec=True)
 def test_create_county_bad_data(mock_is_db_up, temp_county):
-    temp_county['population'] = -1
+    temp_county[cqry.POPULATION] = -1
     resp = TEST_CLIENT.post(ep.COUNTIES_EP, json=temp_county,
                             headers=AUTH_HEADERS)
     assert resp.status_code == BAD_REQUEST
@@ -439,7 +439,7 @@ def test_create_county_bad_data(mock_is_db_up, temp_county):
 
 @patch(DB_UP, return_value=True, autospec=True)
 def test_create_county_state_not_found(mock_is_db_up, temp_county):
-    temp_county['state_code'] = 'ZZ'
+    temp_county[cqry.STATE_CODE] = 'ZZ'
     assert not sqry.exists('ZZ')
     resp = TEST_CLIENT.post(ep.COUNTIES_EP, json=temp_county,
                             headers=AUTH_HEADERS)
@@ -514,8 +514,8 @@ def test_update_county(mock_is_db_up, existing_county):
 @patch(DB_UP, return_value=True, autospec=True)
 def test_update_county_matching_ids_in_body(mock_is_db_up, existing_county):
     body = updated_county_fields()
-    body['state_code'] = CTY_ST_CODE
-    body['name'] = CTY_NAME
+    body[cqry.STATE_CODE] = CTY_ST_CODE
+    body[cqry.NAME] = CTY_NAME
     resp = TEST_CLIENT.put(county_url(CTY_ST_CODE, CTY_NAME), json=body,
                            headers=AUTH_HEADERS)
     assert resp.status_code == OK
@@ -524,8 +524,8 @@ def test_update_county_matching_ids_in_body(mock_is_db_up, existing_county):
 
 @patch(DB_UP, return_value=True, autospec=True)
 @pytest.mark.parametrize('field, new_value', [
-    ('state_code', 'ZZ'),
-    ('name', 'Other County'),
+    (cqry.STATE_CODE, 'ZZ'),
+    (cqry.NAME, 'Other County'),
 ])
 def test_update_county_cannot_change_ids(mock_is_db_up, field, new_value,
                                          existing_county):
@@ -563,7 +563,7 @@ def test_update_county_wrong_state(mock_is_db_up, existing_county):
 def test_update_county_bad_data(mock_is_db_up, existing_county):
     before = dict(stored_county())
     body = updated_county_fields()
-    body['population'] = -1
+    body[cqry.POPULATION] = -1
     resp = TEST_CLIENT.put(county_url(CTY_ST_CODE, CTY_NAME), json=body,
                            headers=AUTH_HEADERS)
     assert resp.status_code == BAD_REQUEST
