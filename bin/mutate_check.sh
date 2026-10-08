@@ -6,7 +6,7 @@
 #
 # Usage: bin/mutate_check.sh FILE 'EXACT LINE TEXT' [TEST_PATH...]
 #   The line text is matched after stripping indentation, and must
-#   occur exactly once in FILE. Test paths default to: common states counties server
+#   occur exactly once in FILE. Test paths default to: data common states counties server
 #
 # Example:
 #   bin/mutate_check.sh server/endpoints.py \
@@ -22,7 +22,7 @@ cd "$(dirname "$0")/.."
 FILE=$1
 LINE=$2
 shift 2
-[ $# -eq 0 ] && set -- common states counties server
+[ $# -eq 0 ] && set -- data common states counties server
 
 BACKUP=$(mktemp)
 cp "$FILE" "$BACKUP"

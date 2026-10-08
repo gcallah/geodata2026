@@ -19,6 +19,7 @@ github: FORCE
 
 all_tests: FORCE
 	cd $(API_DIR); make tests
+	cd $(DB_DIR); make tests
 	cd $(COMMON_DIR); make tests
 	cd $(STATES_DIR); make tests
 	cd $(COUNTIES_DIR); make tests
