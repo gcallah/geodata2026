@@ -1,5 +1,6 @@
 from http.client import (
     BAD_REQUEST,
+    CONFLICT,
     CREATED,
     FORBIDDEN,
     METHOD_NOT_ALLOWED,
@@ -285,6 +286,15 @@ def test_delete_state_leaves_other_states(mock_is_db_up, existing_state):
               if k != code}
     TEST_CLIENT.delete(state_url(code), headers=AUTH_HEADERS)
     assert sqry.STATE_TEST_DATA == others
+
+
+@patch('states.query.is_db_up', return_value=True, autospec=True)
+def test_delete_state_with_counties(mock_is_db_up):
+    assert cqry.has_counties('AL')
+    before = dict(sqry.STATE_TEST_DATA['AL'])
+    resp = TEST_CLIENT.delete(state_url('AL'), headers=AUTH_HEADERS)
+    assert resp.status_code == CONFLICT
+    assert sqry.STATE_TEST_DATA['AL'] == before
 
 
 @patch('states.query.is_db_up', return_value=True, autospec=True)

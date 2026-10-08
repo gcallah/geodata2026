@@ -183,10 +183,12 @@ class State(Resource):
     @api.response(HTTPStatus.UNAUTHORIZED.value, 'Unauthorized')
     @api.response(HTTPStatus.FORBIDDEN.value, 'Forbidden')
     @api.response(HTTPStatus.NOT_FOUND.value, 'Not Found')
+    @api.response(HTTPStatus.CONFLICT.value, 'Conflict')
     @api.response(HTTPStatus.SERVICE_UNAVAILABLE.value, 'Service Unavailable')
     def delete(self, state_code):
         """
         Delete a state.
+        A state that still has counties cannot be deleted (409 Conflict).
         Requires X-User-Id and X-Auth-Code headers.
         """
         check_permission(sec.STATES, sec.DELETE)
@@ -195,7 +197,10 @@ class State(Resource):
             raise wz.ServiceUnavailable('Database may be down.')
         if not state_exists:
             raise wz.NotFound(f'State {state_code} not found.')
-        deleted = sqry.delete(state_code)
+        try:
+            deleted = sqry.delete(state_code)
+        except ValueError as err:
+            raise wz.Conflict(str(err))
         if deleted is None:
             raise wz.ServiceUnavailable('Database may be down.')
         return {MESSAGE: 'State deleted.', STATES_RESP: deleted}

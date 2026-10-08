@@ -138,7 +138,12 @@ def delete(state_code: str):
     """
     Delete a state entry from the test data.
     Returns the deleted entry, or None if it did not exist.
+    Raises ValueError if the state still has counties.
     """
+    # Imported here because counties.query imports this module.
+    import counties.query as cqry
+    if cqry.has_counties(state_code):
+        raise ValueError(f"State {state_code} still has counties.")
     return STATE_TEST_DATA.pop(state_code, None)
 
 

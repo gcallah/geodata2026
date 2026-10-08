@@ -2,6 +2,7 @@ from unittest.mock import patch
 
 import pytest
 
+import counties.query as cqry
 import states.query as qry
 
 TEST_ST = qry.TEST_STATE
@@ -135,6 +136,28 @@ def test_delete_leaves_other_states(mock_is_db_up, temp_state):
 
 
 @patch('states.query.is_db_up', return_value=True, autospec=True)
+def test_delete_state_with_counties(mock_is_db_up):
+    assert cqry.has_counties('AL')
+    before = dict(qry.STATE_TEST_DATA['AL'])
+    with pytest.raises(ValueError):
+        qry.delete('AL')
+    assert qry.STATE_TEST_DATA['AL'] == before
+
+
+@patch('states.query.is_db_up', return_value=True, autospec=True)
+def test_delete_state_after_counties_gone(mock_is_db_up, temp_state):
+    code = temp_state['state_code']
+    qry.create(**temp_state)
+    county = dict(cqry.TEST_COUNTY, state_code=code)
+    cqry.create(**county)
+    with pytest.raises(ValueError):
+        qry.delete(code)
+    cqry.delete(code, county['name'])
+    assert qry.delete(code)['name'] == temp_state['name']
+    assert not qry.exists(code)
+
+
+@patch('states.query.is_db_up', return_value=True, autospec=True)
 def test_delete_missing(mock_is_db_up):
     assert 'ZZ' not in qry.STATE_TEST_DATA
     assert qry.delete('ZZ') is None
@@ -262,3 +285,13 @@ def test_db_down_returns_none(fn, args):
     with patch('states.query.is_db_up', return_value=False, autospec=True):
         assert fn(*args) is None
     assert qry.STATE_TEST_DATA == before
+
+
+@patch('states.query.is_db_up', return_value=True, autospec=True)
+def test_main(mock_is_db_up, capsys):
+    qry.main()
+    out = capsys.readouterr().out
+    assert 'State: AL' in out
+    assert 'Population: 4903185' in out
+    assert 'Capital: Montgomery' in out
+    assert 'Area (sq miles): 52420' in out

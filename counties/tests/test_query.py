@@ -56,6 +56,25 @@ def test_exists_missing_state(mock_is_db_up):
 
 
 @patch(DB_UP, return_value=True, autospec=True)
+def test_has_counties(mock_is_db_up):
+    assert qry.has_counties('AL')
+
+
+@patch(DB_UP, return_value=True, autospec=True)
+def test_has_counties_none(mock_is_db_up):
+    assert 'AK' not in qry.COUNTY_TEST_DATA
+    assert not qry.has_counties('AK')
+
+
+@patch(DB_UP, return_value=True, autospec=True)
+def test_has_counties_after_last_deleted(mock_is_db_up):
+    qry.create(**valid_args(state_code='AK'))
+    assert qry.has_counties('AK')
+    qry.delete('AK', TEST_NAME)
+    assert not qry.has_counties('AK')
+
+
+@patch(DB_UP, return_value=True, autospec=True)
 def test_check_valid_county(mock_is_db_up):
     assert qry.check_valid_county(**valid_args())
 
@@ -261,6 +280,7 @@ def test_delete_missing_state(mock_is_db_up):
 @pytest.mark.parametrize('fn, args', [
     (qry.read, ()),
     (qry.exists, ('AL', 'Autauga')),
+    (qry.has_counties, ('AL',)),
     (qry.delete, ('AL', 'Autauga')),
 ])
 def test_db_down_returns_none(fn, args):

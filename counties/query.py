@@ -66,6 +66,14 @@ def exists(state_code: str, name: str):
     return name in COUNTY_TEST_DATA.get(state_code, {})
 
 
+@needs_db
+def has_counties(state_code: str):
+    """
+    Check if a state has any counties in the test data.
+    """
+    return bool(COUNTY_TEST_DATA.get(state_code))
+
+
 def check_valid_county(state_code: str, name: str, population: int,
                        area_sq_miles: float, metro_area: str,
                        is_update: bool = False):
