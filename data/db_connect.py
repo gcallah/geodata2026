@@ -9,7 +9,10 @@ import pymongo as pm
 LOCAL = "0"
 CLOUD = "1"
 
-SE_DB = 'geodata2026'
+# Tests set GEODATA_DB to a test database (see common.mk):
+DB_ENV = 'GEODATA_DB'
+DEFAULT_DB = 'geodata2026'
+SE_DB = os.environ.get(DB_ENV, DEFAULT_DB)
 
 client = None
 
@@ -87,6 +90,13 @@ def delete(collection: str, filt: dict, db=SE_DB):
     print(f'{filt=}')
     del_result = client[db][collection].delete_one(filt)
     return del_result.deleted_count
+
+
+def delete_many(collection: str, filt: dict, db=SE_DB):
+    """
+    Delete every doc matching the filter; return how many were deleted.
+    """
+    return client[db][collection].delete_many(filt).deleted_count
 
 
 def update(collection, filters, update_dict, db=SE_DB):

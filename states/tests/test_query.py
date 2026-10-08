@@ -3,7 +3,9 @@ from unittest.mock import patch
 import pytest
 
 import counties.query as cqry
+import data.db_connect as dbc
 import states.query as qry
+from states.sample_data import SAMPLE_STATES, stored_states
 
 TEST_ST = qry.TEST_STATE
 
@@ -135,29 +137,29 @@ def test_create_dup(mock_is_db_up, temp_state):
 def test_delete(mock_is_db_up, temp_state):
     code = temp_state[qry.STATE_CODE]
     qry.create(**temp_state)
-    assert code in qry.STATE_TEST_DATA
+    assert code in stored_states()
     deleted = qry.delete(code)
     assert deleted[qry.NAME] == temp_state[qry.NAME]
-    assert code not in qry.STATE_TEST_DATA
+    assert code not in stored_states()
     assert not qry.exists(code)
 
 
 @patch('states.query.is_db_up', return_value=True, autospec=True)
 def test_delete_leaves_other_states(mock_is_db_up, temp_state):
     qry.create(**temp_state)
-    others = {k: v for k, v in qry.STATE_TEST_DATA.items()
+    others = {k: v for k, v in stored_states().items()
               if k != temp_state[qry.STATE_CODE]}
     qry.delete(temp_state[qry.STATE_CODE])
-    assert qry.STATE_TEST_DATA == others
+    assert stored_states() == others
 
 
 @patch('states.query.is_db_up', return_value=True, autospec=True)
 def test_delete_state_with_counties(mock_is_db_up):
     assert cqry.has_counties('AL')
-    before = dict(qry.STATE_TEST_DATA['AL'])
+    before = dict(stored_states()['AL'])
     with pytest.raises(ValueError):
         qry.delete('AL')
-    assert qry.STATE_TEST_DATA['AL'] == before
+    assert stored_states()['AL'] == before
 
 
 @patch('states.query.is_db_up', return_value=True, autospec=True)
@@ -175,7 +177,7 @@ def test_delete_state_after_counties_gone(mock_is_db_up, temp_state):
 
 @patch('states.query.is_db_up', return_value=True, autospec=True)
 def test_delete_missing(mock_is_db_up):
-    assert 'ZZ' not in qry.STATE_TEST_DATA
+    assert 'ZZ' not in stored_states()
     assert qry.delete('ZZ') is None
 
 
@@ -184,7 +186,7 @@ def test_delete_db_down(mock_is_db_up, temp_state):
     qry.create(**temp_state)
     mock_is_db_up.return_value = False
     assert qry.delete(temp_state[qry.STATE_CODE]) is None
-    assert temp_state[qry.STATE_CODE] in qry.STATE_TEST_DATA
+    assert temp_state[qry.STATE_CODE] in stored_states()
 
 
 @patch('states.query.is_db_up', return_value=True, autospec=True)
@@ -218,7 +220,8 @@ def test_update(mock_is_db_up, temp_state):
     qry.create(**temp_state)
     ret = qry.update(code, 2000000, 'New Capital', 60000.5, 'New Name',
                      33.5, -87.5)
-    assert qry.STATE_TEST_DATA[code] == {
+    assert stored_states()[code] == {
+        qry.STATE_CODE: code,
         qry.POPULATION: 2000000,
         qry.CAPITAL: 'New Capital',
         qry.AREA: 60000.5,
@@ -226,51 +229,51 @@ def test_update(mock_is_db_up, temp_state):
         qry.LATITUDE: 33.5,
         qry.LONGITUDE: -87.5,
     }
-    assert ret == qry.STATE_TEST_DATA[code]
+    assert ret == stored_states()[code]
 
 
 @patch('states.query.is_db_up', return_value=True, autospec=True)
 def test_update_leaves_other_states(mock_is_db_up, temp_state):
     qry.create(**temp_state)
-    others = {k: dict(v) for k, v in qry.STATE_TEST_DATA.items()
+    others = {k: dict(v) for k, v in stored_states().items()
               if k != temp_state[qry.STATE_CODE]}
     qry.update(temp_state[qry.STATE_CODE], 1, 'C', 1.0, 'N', 0.0, 0.0)
     for code, data in others.items():
-        assert qry.STATE_TEST_DATA[code] == data
+        assert stored_states()[code] == data
 
 
 @patch('states.query.is_db_up', return_value=True, autospec=True)
 def test_update_missing(mock_is_db_up):
-    assert 'ZZ' not in qry.STATE_TEST_DATA
+    assert 'ZZ' not in stored_states()
     with pytest.raises(ValueError):
         qry.update('ZZ', 1, 'C', 1.0, 'N', 0.0, 0.0)
-    assert 'ZZ' not in qry.STATE_TEST_DATA
+    assert 'ZZ' not in stored_states()
 
 
 @patch('states.query.is_db_up', return_value=True, autospec=True)
 def test_update_invalid_leaves_state_unchanged(mock_is_db_up, temp_state):
     code = temp_state[qry.STATE_CODE]
     qry.create(**temp_state)
-    before = dict(qry.STATE_TEST_DATA[code])
+    before = dict(stored_states()[code])
     with pytest.raises(ValueError):
         qry.update(code, -1, 'C', 1.0, 'N', 0.0, 0.0)
-    assert qry.STATE_TEST_DATA[code] == before
+    assert stored_states()[code] == before
 
 
 @patch('states.query.is_db_up', return_value=True, autospec=True)
 def test_update_db_down(mock_is_db_up, temp_state):
     code = temp_state[qry.STATE_CODE]
     qry.create(**temp_state)
-    before = dict(qry.STATE_TEST_DATA[code])
+    before = dict(stored_states()[code])
     mock_is_db_up.return_value = False
     assert qry.update(code, 1, 'C', 1.0, 'N', 0.0, 0.0) is None
-    assert qry.STATE_TEST_DATA[code] == before
+    assert stored_states()[code] == before
 
 
 def test_create_db_down(temp_state):
     with patch('states.query.is_db_up', return_value=False, autospec=True):
         assert qry.create(**temp_state) is None
-    assert temp_state[qry.STATE_CODE] not in qry.STATE_TEST_DATA
+    assert temp_state[qry.STATE_CODE] not in stored_states()
 
 
 @patch('states.query.is_db_up', return_value=True, autospec=True)
@@ -304,17 +307,17 @@ def test_needs_db_keeps_name():
     (qry.delete, ('AL',)),
 ])
 def test_db_down_returns_none(fn, args):
-    before = dict(qry.STATE_TEST_DATA)
+    before = dict(stored_states())
     with patch('states.query.is_db_up', return_value=False, autospec=True):
         assert fn(*args) is None
-    assert qry.STATE_TEST_DATA == before
+    assert stored_states() == before
 
 
 @patch('states.query.is_db_up', return_value=True, autospec=True)
 def test_main(mock_is_db_up, capsys):
     qry.main()
     out = capsys.readouterr().out
-    for code in qry.STATE_TEST_DATA:
+    for code in stored_states():
         assert f'State: {code}' in out
 
 
@@ -380,4 +383,51 @@ def test_create_stores_lat_long(mock_is_db_up, temp_state):
 def test_create_bad_lat_long_not_stored(mock_is_db_up, temp_state):
     with pytest.raises(ValueError):
         qry.create(**state_args(**{qry.LATITUDE: 91}))
-    assert temp_state[qry.STATE_CODE] not in qry.STATE_TEST_DATA
+    assert temp_state[qry.STATE_CODE] not in stored_states()
+
+
+def test_make_state():
+    state = qry.make_state(*[TEST_ST[fld] for fld in (
+        qry.STATE_CODE, qry.POPULATION, qry.CAPITAL, qry.AREA, qry.NAME,
+        qry.LATITUDE, qry.LONGITUDE)])
+    assert state == TEST_ST
+
+
+@patch('data.db_connect.connect_db', autospec=True)
+@patch('states.query.is_db_up', return_value=True, autospec=True)
+def test_needs_db_connects_when_up(mock_is_db_up, mock_connect):
+    @qry.needs_db
+    def fn():
+        return 'called'
+    assert fn() == 'called'
+    mock_connect.assert_called_once_with()
+
+
+@patch('data.db_connect.connect_db', autospec=True)
+@patch('states.query.is_db_up', return_value=False, autospec=True)
+def test_needs_db_no_connect_when_down(mock_is_db_up, mock_connect):
+    @qry.needs_db
+    def fn():
+        return 'called'
+    assert fn() is None
+    mock_connect.assert_not_called()
+
+
+@patch('states.query.is_db_up', return_value=True, autospec=True)
+def test_read_matches_sample(mock_is_db_up):
+    assert qry.read() == SAMPLE_STATES
+
+
+@patch('states.query.is_db_up', return_value=True, autospec=True)
+def test_create_returns_no_mongo_id(mock_is_db_up, temp_state):
+    ret = qry.create(**temp_state)
+    assert dbc.MONGO_ID not in ret
+    assert stored_states()[temp_state[qry.STATE_CODE]] == ret
+
+
+@patch('states.query.is_db_up', return_value=True, autospec=True)
+def test_delete_returns_no_mongo_id(mock_is_db_up, temp_state):
+    qry.create(**temp_state)
+    ret = qry.delete(temp_state[qry.STATE_CODE])
+    assert ret == temp_state
+    assert dbc.MONGO_ID not in ret

@@ -13,6 +13,7 @@ set +u
 source geodata2026-venv/bin/activate
 set -u
 export PYTHONPATH=$PWD
+export GEODATA_DB=test_geodata2026  # never test against real data
 
 if [ $# -eq 0 ]; then
     make all_tests

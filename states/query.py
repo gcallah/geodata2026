@@ -1,7 +1,13 @@
 #!/usr/bin/env python3
 
+"""
+Queries on states, stored in MongoDB through data/db_connect.py.
+Each state is one document, identified by its state code.
+"""
+
 from functools import wraps
 
+import data.db_connect as dbc
 from data.db_connect import is_db_up
 from states.fields import (
     AREA,
@@ -18,17 +24,21 @@ from states.fields import (
     STATE_CODE_LEN,
 )
 
+STATES_COLLECT = 'USStates'
+
 
 def needs_db(fn):
     """
     Decorate any function that needs the database: if the DB is down,
-    print a message and return None instead of calling the function.
+    print a message and return None instead of calling the function;
+    otherwise make sure we are connected, then call it.
     """
     @wraps(fn)
     def wrapper(*args, **kwargs):
         if not is_db_up():
             print("Database is down.")
             return None
+        dbc.connect_db()
         return fn(*args, **kwargs)
     return wrapper
 
@@ -43,49 +53,21 @@ TEST_STATE = {
     LONGITUDE: -100.0,
 }
 
-STATE_TEST_DATA = {
-    "AL": {
-        POPULATION: 4903200,
-        CAPITAL: "Montgomery",
-        AREA: 52420,
-        NAME: 'Alabama',
-        LATITUDE: 32.318231,
-        LONGITUDE: -86.902298,
-    },
-    "AK": {
-        POPULATION: 731545,
-        CAPITAL: "Juneau",
-        AREA: 665384,
-        NAME: 'Alaska',
-        LATITUDE: 63.588753,
-        LONGITUDE: -154.493062,
-    },
-    "AZ": {
-        POPULATION: 7278717,
-        CAPITAL: "Phoenix",
-        AREA: 113990,
-        NAME: 'Arizona',
-        LATITUDE: 34.048928,
-        LONGITUDE: -111.093731,
-    },
-    # Add more states as needed
-}
-
 
 @needs_db
 def read():
     """
-    Return a list of all states in the test data.
+    Return all states, as a dict keyed by state code.
     """
-    return STATE_TEST_DATA
+    return dbc.read_dict(STATES_COLLECT, STATE_CODE)
 
 
 @needs_db
 def exists(state_code: str):
     """
-    Check if a state exists in the test data.
+    Check if a state exists.
     """
-    return state_code in STATE_TEST_DATA
+    return dbc.read_one(STATES_COLLECT, {STATE_CODE: state_code}) is not None
 
 
 def is_number(val) -> bool:
@@ -130,17 +112,14 @@ def check_valid_state(state_code: str, population: int, capital: str,
     return True
 
 
-@needs_db
-def create(state_code: str, population: int, capital: str,
-           area: float, name: str, latitude: float, longitude: float):
+def make_state(state_code: str, population: int, capital: str,
+               area: float, name: str, latitude: float,
+               longitude: float) -> dict:
     """
-    Create a new state entry in the test data.
+    Build a state document from its fields.
     """
-    # check_valid_state raises ValueError if the state is invalid, so we don't
-    # need to check the return value
-    check_valid_state(state_code, population, capital, area, name,
-                      latitude, longitude)
-    STATE_TEST_DATA[state_code] = {
+    return {
+        STATE_CODE: state_code,
         POPULATION: population,
         CAPITAL: capital,
         AREA: area,
@@ -148,42 +127,59 @@ def create(state_code: str, population: int, capital: str,
         LATITUDE: latitude,
         LONGITUDE: longitude,
     }
-    return STATE_TEST_DATA[state_code]
+
+
+@needs_db
+def create(state_code: str, population: int, capital: str,
+           area: float, name: str, latitude: float, longitude: float):
+    """
+    Create a new state.
+    Returns the new state; raises ValueError if it is invalid.
+    """
+    # check_valid_state raises ValueError if the state is invalid, so we don't
+    # need to check the return value
+    check_valid_state(state_code, population, capital, area, name,
+                      latitude, longitude)
+    state = make_state(state_code, population, capital, area, name,
+                       latitude, longitude)
+    # insert a copy: MongoDB adds an _id to the doc it is given
+    dbc.create(STATES_COLLECT, dict(state))
+    return state
 
 
 @needs_db
 def update(state_code: str, population: int, capital: str,
            area: float, name: str, latitude: float, longitude: float):
     """
-    Update an existing state entry in the test data.
+    Update an existing state.
     The state code identifies the state and cannot be changed.
     Raises ValueError if the update is invalid.
     """
     check_valid_state(state_code, population, capital, area, name,
                       latitude, longitude, is_update=True)
-    STATE_TEST_DATA[state_code] = {
-        POPULATION: population,
-        CAPITAL: capital,
-        AREA: area,
-        NAME: name,
-        LATITUDE: latitude,
-        LONGITUDE: longitude,
-    }
-    return STATE_TEST_DATA[state_code]
+    state = make_state(state_code, population, capital, area, name,
+                       latitude, longitude)
+    dbc.update(STATES_COLLECT, {STATE_CODE: state_code}, state)
+    return state
 
 
 @needs_db
 def delete(state_code: str):
     """
-    Delete a state entry from the test data.
-    Returns the deleted entry, or None if it did not exist.
+    Delete a state.
+    Returns the deleted state, or None if it did not exist.
     Raises ValueError if the state still has counties.
     """
     # Imported here because counties.query imports this module.
     import counties.query as cqry
     if cqry.has_counties(state_code):
         raise ValueError(f"State {state_code} still has counties.")
-    return STATE_TEST_DATA.pop(state_code, None)
+    state = dbc.read_one(STATES_COLLECT, {STATE_CODE: state_code})
+    if state is None:
+        return None
+    dbc.delete(STATES_COLLECT, {STATE_CODE: state_code})
+    del state[dbc.MONGO_ID]
+    return state
 
 
 def main():

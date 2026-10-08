@@ -18,8 +18,7 @@ from states.fields import (
     POPULATION,
     STATE_CODE,
 )
-
-STATES_COLLECT = 'USStates'
+from states.query import STATES_COLLECT
 
 # CSV column names:
 CSV_ABBREV = 'Abbrev'

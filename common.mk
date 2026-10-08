@@ -3,6 +3,8 @@ export LINTER = flake8
 export PYLINTFLAGS = --exclude=__main__.py
 
 export CLOUD_MONGO = 0
+# Tests must never touch the real database:
+export GEODATA_DB = test_geodata2026
 
 PYTHONFILES = $(shell ls *.py)
 PYTESTFLAGS = -vv --verbose --cov-branch --cov-report term-missing --tb=short -W ignore::FutureWarning

@@ -3,6 +3,7 @@ import pytest
 import common.fields as cmn
 import states.fields as flds
 import states.query as qry
+from states.sample_data import stored_states
 
 
 def test_fields_match_test_state():
@@ -14,11 +15,10 @@ def test_fields_match_test_state():
 
 def test_fields_match_state_data():
     """
-    Every stored state has exactly the non-key fields in the dictionary.
+    Every stored state has exactly the fields in the dictionary.
     """
-    non_key_flds = set(flds.STATE_FLDS) - {flds.STATE_CODE}
-    for data in qry.STATE_TEST_DATA.values():
-        assert set(data) == non_key_flds
+    for data in stored_states().values():
+        assert set(data) == set(flds.STATE_FLDS)
 
 
 @pytest.mark.parametrize('fld_nm', list(flds.STATE_FLDS))
