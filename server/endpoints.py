@@ -10,6 +10,7 @@ from flask_cors import CORS
 
 import werkzeug.exceptions as wz
 
+import counties.query as cqry
 import security.security as sec
 import states.query as sqry
 
@@ -24,6 +25,9 @@ HELLO_RESP = 'hello'
 STATES_EP = '/states'
 STATE_EP = f'{STATES_EP}/<state_code>'
 STATES_RESP = 'States:'
+COUNTIES_EP = '/counties'
+COUNTY_EP = f'{COUNTIES_EP}/<state_code>/<name>'
+COUNTIES_RESP = 'Counties:'
 MESSAGE = 'Message'
 USER_ID_HDR = 'X-User-Id'
 AUTH_CODE_HDR = 'X-Auth-Code'
@@ -195,3 +199,124 @@ class State(Resource):
         if deleted is None:
             raise wz.ServiceUnavailable('Database may be down.')
         return {MESSAGE: 'State deleted.', STATES_RESP: deleted}
+
+
+COUNTY_CREATE_FLDS = api.model('CreateCounty', {
+    'state_code': fields.String(required=True),
+    'name': fields.String(required=True),
+    'population': fields.Integer(required=True),
+    'area_sq_miles': fields.Float(required=True),
+    'metro_area': fields.String(required=True),
+})
+
+COUNTY_UPDATE_FLDS = api.model('UpdateCounty', {
+    'population': fields.Integer(required=True),
+    'area_sq_miles': fields.Float(required=True),
+    'metro_area': fields.String(required=True),
+})
+
+
+@api.route(COUNTIES_EP)
+class Counties(Resource):
+    """
+    The get method will return all counties in the database.
+    """
+    @api.response(HTTPStatus.OK.value, 'Success')
+    @api.response(HTTPStatus.SERVICE_UNAVAILABLE.value, 'Service Unavailable')
+    def get(self):
+        """
+        Return all counties in the database, keyed by state code,
+        then by county name.
+        """
+        counties = cqry.read()
+        if counties is None:
+            raise wz.ServiceUnavailable('Database may be down.')
+        return {COUNTIES_RESP: counties}
+
+    @api.expect(AUTH_HDRS, COUNTY_CREATE_FLDS)
+    @api.response(HTTPStatus.CREATED.value, 'Created')
+    @api.response(HTTPStatus.BAD_REQUEST.value, 'Bad Request')
+    @api.response(HTTPStatus.UNAUTHORIZED.value, 'Unauthorized')
+    @api.response(HTTPStatus.FORBIDDEN.value, 'Forbidden')
+    @api.response(HTTPStatus.SERVICE_UNAVAILABLE.value, 'Service Unavailable')
+    def post(self):
+        """
+        Add a new county.
+        Requires X-User-Id and X-Auth-Code headers.
+        """
+        check_permission(sec.COUNTIES, sec.CREATE)
+        data = request.get_json(silent=True) or {}
+        try:
+            new_county = cqry.create(data.get('state_code'),
+                                     data.get('name'),
+                                     data.get('population'),
+                                     data.get('area_sq_miles'),
+                                     data.get('metro_area'))
+        except ValueError as err:
+            raise wz.BadRequest(str(err))
+        if new_county is None:
+            raise wz.ServiceUnavailable('Database may be down.')
+        return {MESSAGE: 'County added.', COUNTIES_RESP: new_county}, \
+            HTTPStatus.CREATED
+
+
+@api.route(COUNTY_EP)
+class County(Resource):
+    """
+    Operations on a single county, identified by its state code and name.
+    """
+    @api.expect(AUTH_HDRS, COUNTY_UPDATE_FLDS)
+    @api.response(HTTPStatus.OK.value, 'Success')
+    @api.response(HTTPStatus.BAD_REQUEST.value, 'Bad Request')
+    @api.response(HTTPStatus.UNAUTHORIZED.value, 'Unauthorized')
+    @api.response(HTTPStatus.FORBIDDEN.value, 'Forbidden')
+    @api.response(HTTPStatus.NOT_FOUND.value, 'Not Found')
+    @api.response(HTTPStatus.SERVICE_UNAVAILABLE.value, 'Service Unavailable')
+    def put(self, state_code, name):
+        """
+        Update an existing county.
+        The state code and name cannot be changed.
+        Requires X-User-Id and X-Auth-Code headers.
+        """
+        check_permission(sec.COUNTIES, sec.UPDATE)
+        data = request.get_json(silent=True) or {}
+        if (data.get('state_code', state_code) != state_code
+                or data.get('name', name) != name):
+            raise wz.BadRequest('The state code and name cannot be changed.')
+        county_exists = cqry.exists(state_code, name)
+        if county_exists is None:
+            raise wz.ServiceUnavailable('Database may be down.')
+        if not county_exists:
+            raise wz.NotFound(f'County {name}, {state_code} not found.')
+        try:
+            updated = cqry.update(state_code, name,
+                                  data.get('population'),
+                                  data.get('area_sq_miles'),
+                                  data.get('metro_area'))
+        except ValueError as err:
+            raise wz.BadRequest(str(err))
+        if updated is None:
+            raise wz.ServiceUnavailable('Database may be down.')
+        return {MESSAGE: 'County updated.', COUNTIES_RESP: updated}
+
+    @api.expect(AUTH_HDRS)
+    @api.response(HTTPStatus.OK.value, 'Success')
+    @api.response(HTTPStatus.UNAUTHORIZED.value, 'Unauthorized')
+    @api.response(HTTPStatus.FORBIDDEN.value, 'Forbidden')
+    @api.response(HTTPStatus.NOT_FOUND.value, 'Not Found')
+    @api.response(HTTPStatus.SERVICE_UNAVAILABLE.value, 'Service Unavailable')
+    def delete(self, state_code, name):
+        """
+        Delete a county.
+        Requires X-User-Id and X-Auth-Code headers.
+        """
+        check_permission(sec.COUNTIES, sec.DELETE)
+        county_exists = cqry.exists(state_code, name)
+        if county_exists is None:
+            raise wz.ServiceUnavailable('Database may be down.')
+        if not county_exists:
+            raise wz.NotFound(f'County {name}, {state_code} not found.')
+        deleted = cqry.delete(state_code, name)
+        if deleted is None:
+            raise wz.ServiceUnavailable('Database may be down.')
+        return {MESSAGE: 'County deleted.', COUNTIES_RESP: deleted}

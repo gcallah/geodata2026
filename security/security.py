@@ -59,6 +59,7 @@ LOGIN = 'login'
 
 # Features:
 STATES = 'states'
+COUNTIES = 'counties'
 
 security_recs = None
 # These will come from the DB soon:

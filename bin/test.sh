@@ -17,5 +17,5 @@ export PYTHONPATH=$PWD
 if [ $# -eq 0 ]; then
     make all_tests
 else
-    python -m pytest -q -p no:cacheprovider "$@"
+    python -m pytest -q -p no:cacheprovider --import-mode=importlib "$@"
 fi
