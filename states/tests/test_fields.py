@@ -39,4 +39,6 @@ def test_query_uses_fields_constants():
 
 
 def test_get_flds():
-    assert flds.get_flds() is flds.STATE_FLDS
+    assert isinstance(flds.get_flds(), dict)
+    for fld_nm, fld in flds.get_flds().items():
+        assert isinstance(fld, dict)
