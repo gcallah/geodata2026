@@ -8,7 +8,7 @@ from states.query import needs_db, STATE_CODE_LEN
 STATE_CODE = 'state_code'
 NAME = 'name'
 POPULATION = 'population'
-AREA = 'area_sq_miles'
+AREA = 'area'
 METRO_AREA = 'metro_area'
 
 
@@ -83,7 +83,7 @@ def has_counties(state_code: str):
 
 
 def check_valid_county(state_code: str, name: str, population: int,
-                       area_sq_miles: float, metro_area: str,
+                       area: float, metro_area: str,
                        is_update: bool = False):
     """
     Raise ValueError if the county data is invalid.
@@ -107,8 +107,8 @@ def check_valid_county(state_code: str, name: str, population: int,
     if (not isinstance(population, int) or isinstance(population, bool)
             or population < 0):
         raise ValueError("Population must be a non-negative integer.")
-    if (not isinstance(area_sq_miles, (int, float))
-            or isinstance(area_sq_miles, bool) or area_sq_miles <= 0):
+    if (not isinstance(area, (int, float))
+            or isinstance(area, bool) or area <= 0):
         raise ValueError("Area must be a positive number.")
     if not isinstance(metro_area, str):
         raise ValueError("Metro area must be a string.")
@@ -117,18 +117,18 @@ def check_valid_county(state_code: str, name: str, population: int,
 
 @needs_db
 def create(state_code: str, name: str, population: int,
-           area_sq_miles: float, metro_area: str):
+           area: float, metro_area: str):
     """
     Create a new county entry in the test data.
     """
     # check_valid_county raises ValueError if the county is invalid, so we
     # don't need to check the return value
-    check_valid_county(state_code, name, population, area_sq_miles,
+    check_valid_county(state_code, name, population, area,
                        metro_area)
     counties = COUNTY_TEST_DATA.setdefault(state_code, {})
     counties[name] = {
         POPULATION: population,
-        AREA: area_sq_miles,
+        AREA: area,
         METRO_AREA: metro_area,
     }
     return counties[name]
@@ -136,17 +136,17 @@ def create(state_code: str, name: str, population: int,
 
 @needs_db
 def update(state_code: str, name: str, population: int,
-           area_sq_miles: float, metro_area: str):
+           area: float, metro_area: str):
     """
     Update an existing county entry in the test data.
     The state code and name identify the county and cannot be changed.
     Raises ValueError if the update is invalid.
     """
-    check_valid_county(state_code, name, population, area_sq_miles,
+    check_valid_county(state_code, name, population, area,
                        metro_area, is_update=True)
     COUNTY_TEST_DATA[state_code][name] = {
         POPULATION: population,
-        AREA: area_sq_miles,
+        AREA: area,
         METRO_AREA: metro_area,
     }
     return COUNTY_TEST_DATA[state_code][name]

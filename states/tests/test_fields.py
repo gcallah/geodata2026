@@ -36,3 +36,7 @@ def test_state_code_max_len():
 def test_query_uses_fields_constants():
     assert qry.STATE_CODE is flds.STATE_CODE
     assert qry.STATE_CODE_LEN == flds.STATE_CODE_LEN
+
+
+def test_get_flds():
+    assert flds.get_flds() is flds.STATE_FLDS

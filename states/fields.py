@@ -87,3 +87,8 @@ STATE_FLDS = {
         JUSTIFICATION: RIGHT,
     },
 }
+
+
+def get_flds():
+    """Return the state field dictionary."""
+    return STATE_FLDS
