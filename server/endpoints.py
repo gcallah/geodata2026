@@ -12,6 +12,7 @@ import werkzeug.exceptions as wz
 
 import counties.query as cqry
 import security.security as sec
+import states.fields as sflds
 import states.query as sqry
 
 app = Flask(__name__)
@@ -25,6 +26,8 @@ HELLO_RESP = 'hello'
 STATES_EP = '/states'
 STATE_EP = f'{STATES_EP}/<state_code>'
 STATES_RESP = 'States:'
+STATE_FLDS_EP = f'{STATES_EP}/fields'
+STATE_FLDS_RESP = 'State fields:'
 COUNTIES_EP = '/counties'
 COUNTY_EP = f'{COUNTIES_EP}/<state_code>/<name>'
 COUNTIES_RESP = 'Counties:'
@@ -204,6 +207,20 @@ class State(Resource):
         if deleted is None:
             raise wz.ServiceUnavailable('Database may be down.')
         return {MESSAGE: 'State deleted.', STATES_RESP: deleted}
+
+
+@api.route(STATE_FLDS_EP)
+class StateFields(Resource):
+    """
+    Describes the fields of a state: the data dictionary.
+    """
+    @api.response(HTTPStatus.OK.value, 'Success')
+    def get(self):
+        """
+        Return the state data dictionary: for each field, its display
+        name, description, type and other display information.
+        """
+        return {STATE_FLDS_RESP: sflds.get_flds()}
 
 
 COUNTY_CREATE_FLDS = api.model('CreateCounty', {

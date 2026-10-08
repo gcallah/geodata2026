@@ -18,6 +18,7 @@ import pytest
 import counties.query as cqry
 import security.security as sec
 import server.endpoints as ep
+import states.fields as sflds
 import states.query as sqry
 
 TEST_CLIENT = ep.app.test_client()
@@ -360,6 +361,58 @@ def test_delete_on_states_collection_not_allowed(mock_is_db_up,
     resp = TEST_CLIENT.delete(ep.STATES_EP, headers=AUTH_HEADERS)
     assert resp.status_code == METHOD_NOT_ALLOWED
     assert existing_state[sqry.STATE_CODE] in sqry.STATE_TEST_DATA
+
+
+
+def test_get_state_fields():
+    resp = TEST_CLIENT.get(ep.STATE_FLDS_EP)
+    assert resp.status_code == OK
+    assert resp.get_json()[ep.STATE_FLDS_RESP] == sflds.get_flds()
+
+
+def test_get_state_fields_describes_every_field():
+    resp = TEST_CLIENT.get(ep.STATE_FLDS_EP)
+    state_flds = resp.get_json()[ep.STATE_FLDS_RESP]
+    assert set(state_flds) == set(sqry.TEST_STATE)
+    for fld in state_flds.values():
+        assert sflds.DISP_NAME in fld
+        assert sflds.FLD_TYPE in fld
+
+
+@patch('states.query.is_db_up', return_value=False, autospec=True)
+def test_get_state_fields_db_down(mock_is_db_up):
+    """
+    The data dictionary is static, so it is served even if the DB is down.
+    """
+    resp = TEST_CLIENT.get(ep.STATE_FLDS_EP)
+    assert resp.status_code == OK
+
+
+def test_get_state_fields_no_auth_needed():
+    resp = TEST_CLIENT.get(ep.STATE_FLDS_EP)
+    assert resp.status_code == OK
+
+
+@patch('states.query.is_db_up', return_value=True, autospec=True)
+@pytest.mark.parametrize('method', ['post', 'put', 'delete'])
+def test_state_fields_read_only(mock_is_db_up, method):
+    """
+    /states/fields only allows GET. PUT and DELETE fall through to
+    /states/<state_code>, where they are rejected because no state has
+    the code 'fields'.
+    """
+    before = dict(sqry.STATE_TEST_DATA)
+    resp = getattr(TEST_CLIENT, method)(ep.STATE_FLDS_EP,
+                                        json=sqry.TEST_STATE,
+                                        headers=AUTH_HEADERS)
+    assert resp.status_code >= BAD_REQUEST
+    assert sqry.STATE_TEST_DATA == before
+
+
+def test_state_fields_endpoint_listed():
+    resp = TEST_CLIENT.get(ep.ENDPOINT_EP)
+    endpoints = resp.get_json()[ep.ENDPOINT_RESP]
+    assert ep.STATE_FLDS_EP in endpoints
 
 
 # counties.query uses needs_db from states.query, so that is where
