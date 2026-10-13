@@ -78,10 +78,73 @@ def test_create_state_bad_data(mock_is_db_up, temp_state):
     assert resp.status_code == BAD_REQUEST
 
 
+# What states.query stores for each optional field left out:
+STATE_DEFAULTS = {
+    sqry.POPULATION: 0,
+    sqry.CAPITAL: '',
+    sqry.AREA: 0,
+    sqry.LATITUDE: 0,
+    sqry.LONGITUDE: 0,
+}
+
+
+def test_optional_state_flds_all_present():
+    assert ep.optional_state_flds(dict(sqry.TEST_STATE)) == {
+        fld: sqry.TEST_STATE[fld] for fld in ep.STATE_OPT_FLDS}
+
+
+def test_optional_state_flds_none_present():
+    assert ep.optional_state_flds({sqry.STATE_CODE: 'TS',
+                                   sqry.NAME: 'Test State'}) == {}
+
+
+def test_optional_state_flds_keeps_explicit_none():
+    """
+    A field sent as null is passed on, so validation can reject it.
+    """
+    assert ep.optional_state_flds({sqry.AREA: None}) == {sqry.AREA: None}
+
+
+def test_optional_state_flds_ignores_other_keys():
+    assert ep.optional_state_flds({'bogus': 1, sqry.AREA: 5}) == {
+        sqry.AREA: 5}
+
+
 @patch('states.query.is_db_up', return_value=True, autospec=True)
-@pytest.mark.parametrize('fld_nm', [sqry.LATITUDE, sqry.LONGITUDE])
-def test_create_state_missing_lat_long(mock_is_db_up, fld_nm, temp_state):
+@pytest.mark.parametrize('fld_nm', ep.STATE_OPT_FLDS)
+def test_create_state_missing_optional(mock_is_db_up, fld_nm, temp_state):
     del temp_state[fld_nm]
+    resp = TEST_CLIENT.post(ep.STATES_EP, json=temp_state,
+                            headers=AUTH_HEADERS)
+    assert resp.status_code == CREATED
+    stored = stored_states()[temp_state[sqry.STATE_CODE]]
+    assert stored == {**temp_state, fld_nm: STATE_DEFAULTS[fld_nm]}
+
+
+@patch('states.query.is_db_up', return_value=True, autospec=True)
+def test_create_state_code_and_name_only(mock_is_db_up, temp_state):
+    code = temp_state[sqry.STATE_CODE]
+    body = {sqry.STATE_CODE: code, sqry.NAME: temp_state[sqry.NAME]}
+    resp = TEST_CLIENT.post(ep.STATES_EP, json=body, headers=AUTH_HEADERS)
+    assert resp.status_code == CREATED
+    assert stored_states()[code] == {**body, **STATE_DEFAULTS}
+    assert resp.get_json()[ep.STATES_RESP] == stored_states()[code]
+
+
+@patch('states.query.is_db_up', return_value=True, autospec=True)
+@pytest.mark.parametrize('fld_nm', [sqry.STATE_CODE, sqry.NAME])
+def test_create_state_missing_required(mock_is_db_up, fld_nm, temp_state):
+    code = temp_state[sqry.STATE_CODE]
+    del temp_state[fld_nm]
+    resp = TEST_CLIENT.post(ep.STATES_EP, json=temp_state,
+                            headers=AUTH_HEADERS)
+    assert resp.status_code == BAD_REQUEST
+    assert not sqry.exists(code)
+
+
+@patch('states.query.is_db_up', return_value=True, autospec=True)
+def test_create_state_null_optional(mock_is_db_up, temp_state):
+    temp_state[sqry.AREA] = None
     resp = TEST_CLIENT.post(ep.STATES_EP, json=temp_state,
                             headers=AUTH_HEADERS)
     assert resp.status_code == BAD_REQUEST
@@ -228,6 +291,29 @@ def test_update_state_bad_data(mock_is_db_up, existing_state):
     before = dict(stored_states()[code])
     body = updated_fields()
     body[sqry.POPULATION] = -1
+    resp = TEST_CLIENT.put(state_url(code), json=body, headers=AUTH_HEADERS)
+    assert resp.status_code == BAD_REQUEST
+    assert stored_states()[code] == before
+
+
+@patch('states.query.is_db_up', return_value=True, autospec=True)
+def test_update_state_name_only(mock_is_db_up, existing_state):
+    code = existing_state[sqry.STATE_CODE]
+    resp = TEST_CLIENT.put(state_url(code), json={sqry.NAME: 'New Name'},
+                           headers=AUTH_HEADERS)
+    assert resp.status_code == OK
+    expected = {sqry.STATE_CODE: code, sqry.NAME: 'New Name',
+                **STATE_DEFAULTS}
+    assert stored_states()[code] == expected
+    assert resp.get_json()[ep.STATES_RESP] == expected
+
+
+@patch('states.query.is_db_up', return_value=True, autospec=True)
+def test_update_state_missing_name(mock_is_db_up, existing_state):
+    code = existing_state[sqry.STATE_CODE]
+    before = dict(stored_states()[code])
+    body = updated_fields()
+    del body[sqry.NAME]
     resp = TEST_CLIENT.put(state_url(code), json=body, headers=AUTH_HEADERS)
     assert resp.status_code == BAD_REQUEST
     assert stored_states()[code] == before

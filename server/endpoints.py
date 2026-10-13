@@ -88,22 +88,34 @@ class Endpoints(Resource):
 
 STATE_CREATE_FLDS = api.model('CreateState', {
     sqry.STATE_CODE: fields.String(required=True),
-    sqry.POPULATION: fields.Integer(required=True),
-    sqry.CAPITAL: fields.String(required=True),
-    sqry.AREA: fields.Float(required=True),
     sqry.NAME: fields.String(required=True),
-    sqry.LATITUDE: fields.Float(required=True),
-    sqry.LONGITUDE: fields.Float(required=True),
+    sqry.POPULATION: fields.Integer(),
+    sqry.CAPITAL: fields.String(),
+    sqry.AREA: fields.Float(),
+    sqry.LATITUDE: fields.Float(),
+    sqry.LONGITUDE: fields.Float(),
 })
 
 STATE_UPDATE_FLDS = api.model('UpdateState', {
-    sqry.POPULATION: fields.Integer(required=True),
-    sqry.CAPITAL: fields.String(required=True),
-    sqry.AREA: fields.Float(required=True),
     sqry.NAME: fields.String(required=True),
-    sqry.LATITUDE: fields.Float(required=True),
-    sqry.LONGITUDE: fields.Float(required=True),
+    sqry.POPULATION: fields.Integer(),
+    sqry.CAPITAL: fields.String(),
+    sqry.AREA: fields.Float(),
+    sqry.LATITUDE: fields.Float(),
+    sqry.LONGITUDE: fields.Float(),
 })
+
+# Fields a state request may leave out; states.query supplies defaults.
+STATE_OPT_FLDS = (sqry.POPULATION, sqry.CAPITAL, sqry.AREA,
+                  sqry.LATITUDE, sqry.LONGITUDE)
+
+
+def optional_state_flds(data: dict) -> dict:
+    """
+    Return the optional state fields present in a request body,
+    so that any left out get their defaults from states.query.
+    """
+    return {fld: data[fld] for fld in STATE_OPT_FLDS if fld in data}
 
 
 @api.route(STATES_EP)
@@ -137,12 +149,8 @@ class States(Resource):
         data = request.get_json(silent=True) or {}
         try:
             new_state = sqry.create(data.get(sqry.STATE_CODE),
-                                    data.get(sqry.POPULATION),
-                                    data.get(sqry.CAPITAL),
-                                    data.get(sqry.AREA),
                                     data.get(sqry.NAME),
-                                    data.get(sqry.LATITUDE),
-                                    data.get(sqry.LONGITUDE))
+                                    **optional_state_flds(data))
         except ValueError as err:
             raise wz.BadRequest(str(err))
         if new_state is None:
@@ -179,13 +187,8 @@ class State(Resource):
         if not state_exists:
             raise wz.NotFound(f'State {state_code} not found.')
         try:
-            updated = sqry.update(state_code,
-                                  data.get(sqry.POPULATION),
-                                  data.get(sqry.CAPITAL),
-                                  data.get(sqry.AREA),
-                                  data.get(sqry.NAME),
-                                  data.get(sqry.LATITUDE),
-                                  data.get(sqry.LONGITUDE))
+            updated = sqry.update(state_code, data.get(sqry.NAME),
+                                  **optional_state_flds(data))
         except ValueError as err:
             raise wz.BadRequest(str(err))
         if updated is None:

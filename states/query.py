@@ -45,10 +45,10 @@ def needs_db(fn):
 
 TEST_STATE = {
     STATE_CODE: "TS",
+    NAME: 'Test State',
     POPULATION: 1000000,
     CAPITAL: "Test Capital",
     AREA: 50000,
-    NAME: 'Test State',
     LATITUDE: 40.0,
     LONGITUDE: -100.0,
 }
@@ -78,11 +78,14 @@ def is_number(val) -> bool:
     return isinstance(val, (int, float)) and not isinstance(val, bool)
 
 
-def check_valid_state(state_code: str, population: int, capital: str,
-                      area: float, name: str, latitude: float,
-                      longitude: float, is_update: bool = False):
+def check_valid_state(state_code: str, name: str, population: int = 0,
+                      capital: str = '', area: float = 0,
+                      latitude: float = 0, longitude: float = 0,
+                      is_update: bool = False):
     """
     Raise ValueError if the state data is invalid.
+    Only the state code and name are required: the other fields may
+    be left at their defaults (0 or '').
     For a create, the state code must not exist yet; for an update
     (is_update=True), it must already exist.
     """
@@ -93,14 +96,14 @@ def check_valid_state(state_code: str, population: int, capital: str,
             raise ValueError(f"State code {state_code} does not exist.")
     elif exists(state_code):
         raise ValueError(f"State code {state_code} already exists.")
-    if not isinstance(population, int) or population < 0:
-        raise ValueError("Population must be a non-negative integer.")
-    if not isinstance(capital, str) or not capital:
-        raise ValueError("Capital must be a non-empty string.")
-    if not is_number(area) or area <= 0:
-        raise ValueError("Area must be a positive number.")
     if not isinstance(name, str) or not name:
         raise ValueError("Name must be a non-empty string.")
+    if not isinstance(population, int) or population < 0:
+        raise ValueError("Population must be a non-negative integer.")
+    if not isinstance(capital, str):
+        raise ValueError("Capital must be a string.")
+    if not is_number(area) or area < 0:
+        raise ValueError("Area must be a non-negative number.")
     if (not is_number(latitude)
             or not MIN_LATITUDE <= latitude <= MAX_LATITUDE):
         raise ValueError(f"Latitude must be a number from {MIN_LATITUDE} "
@@ -112,35 +115,36 @@ def check_valid_state(state_code: str, population: int, capital: str,
     return True
 
 
-def make_state(state_code: str, population: int, capital: str,
-               area: float, name: str, latitude: float,
-               longitude: float) -> dict:
+def make_state(state_code: str, name: str, population: int = 0,
+               capital: str = '', area: float = 0, latitude: float = 0,
+               longitude: float = 0) -> dict:
     """
     Build a state document from its fields.
     """
     return {
         STATE_CODE: state_code,
+        NAME: name,
         POPULATION: population,
         CAPITAL: capital,
         AREA: area,
-        NAME: name,
         LATITUDE: latitude,
         LONGITUDE: longitude,
     }
 
 
 @needs_db
-def create(state_code: str, population: int, capital: str,
-           area: float, name: str, latitude: float, longitude: float):
+def create(state_code: str, name: str, population: int = 0,
+           capital: str = '', area: float = 0, latitude: float = 0,
+           longitude: float = 0):
     """
     Create a new state.
     Returns the new state; raises ValueError if it is invalid.
     """
     # check_valid_state raises ValueError if the state is invalid, so we don't
     # need to check the return value
-    check_valid_state(state_code, population, capital, area, name,
+    check_valid_state(state_code, name, population, capital, area,
                       latitude, longitude)
-    state = make_state(state_code, population, capital, area, name,
+    state = make_state(state_code, name, population, capital, area,
                        latitude, longitude)
     # insert a copy: MongoDB adds an _id to the doc it is given
     dbc.create(STATES_COLLECT, dict(state))
@@ -148,16 +152,17 @@ def create(state_code: str, population: int, capital: str,
 
 
 @needs_db
-def update(state_code: str, population: int, capital: str,
-           area: float, name: str, latitude: float, longitude: float):
+def update(state_code: str, name: str, population: int = 0,
+           capital: str = '', area: float = 0, latitude: float = 0,
+           longitude: float = 0):
     """
     Update an existing state.
     The state code identifies the state and cannot be changed.
     Raises ValueError if the update is invalid.
     """
-    check_valid_state(state_code, population, capital, area, name,
+    check_valid_state(state_code, name, population, capital, area,
                       latitude, longitude, is_update=True)
-    state = make_state(state_code, population, capital, area, name,
+    state = make_state(state_code, name, population, capital, area,
                        latitude, longitude)
     dbc.update(STATES_COLLECT, {STATE_CODE: state_code}, state)
     return state
