@@ -59,12 +59,6 @@ def test_check_valid_state_code_too_long(mock_is_db_up):
 
 
 @patch('states.query.is_db_up', return_value=True, autospec=True)
-def test_query(mock_is_db_up):
-    states = qry.read()
-    assert isinstance(states, dict)
-
-
-@patch('states.query.is_db_up', return_value=True, autospec=True)
 def test_check_valid_state_dup_code(mock_is_db_up):
     with pytest.raises(ValueError):
         qry.check_valid_state('AL',
@@ -110,6 +104,12 @@ def test_check_valid_state_no_name(mock_is_db_up):
                               '',
                               TEST_ST[qry.LATITUDE],
                               TEST_ST[qry.LONGITUDE])
+
+
+@patch('states.query.is_db_up', return_value=True, autospec=True)
+def test_query(mock_is_db_up):
+    states = qry.read()
+    assert isinstance(states, dict)
 
 
 @pytest.fixture
