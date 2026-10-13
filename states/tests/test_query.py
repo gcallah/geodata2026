@@ -163,14 +163,9 @@ def test_delete_state_with_counties(mock_is_db_up):
 
 
 @patch('states.query.is_db_up', return_value=True, autospec=True)
-def test_delete_state_after_counties_gone(mock_is_db_up, temp_state):
+def test_delete_state_no_counties(mock_is_db_up, temp_state):
     code = temp_state[qry.STATE_CODE]
     qry.create(**temp_state)
-    county = {**cqry.TEST_COUNTY, cqry.STATE_CODE: code}
-    cqry.create(**county)
-    with pytest.raises(ValueError):
-        qry.delete(code)
-    cqry.delete(code, county[qry.NAME])
     assert qry.delete(code)[qry.NAME] == temp_state[qry.NAME]
     assert not qry.exists(code)
 
