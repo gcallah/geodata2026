@@ -67,6 +67,16 @@ def read():
 
 
 @needs_db
+def read_one(state_code: str, name: str):
+    """
+    Return the county with this state code and name,
+    or None if there is none.
+    """
+    county = COUNTY_TEST_DATA.get(state_code, {}).get(name)
+    return None if county is None else dict(county)
+
+
+@needs_db
 def exists(state_code: str, name: str):
     """
     Check if a county exists in the test data.
@@ -82,11 +92,13 @@ def has_counties(state_code: str):
     return bool(COUNTY_TEST_DATA.get(state_code))
 
 
-def check_valid_county(state_code: str, name: str, population: int,
-                       area: float, metro_area: str,
+def check_valid_county(state_code: str, name: str, population: int = 0,
+                       area: float = 0, metro_area: str = '',
                        is_update: bool = False):
     """
     Raise ValueError if the county data is invalid.
+    Only the state code and name are required: the other fields may
+    be left at their defaults (0 or '').
     For a create, the state must exist (else NotFoundError is raised) and
     the county must not exist yet; for an update (is_update=True), the
     county must already exist.
@@ -108,16 +120,16 @@ def check_valid_county(state_code: str, name: str, population: int,
             or population < 0):
         raise ValueError("Population must be a non-negative integer.")
     if (not isinstance(area, (int, float))
-            or isinstance(area, bool) or area <= 0):
-        raise ValueError("Area must be a positive number.")
+            or isinstance(area, bool) or area < 0):
+        raise ValueError("Area must be a non-negative number.")
     if not isinstance(metro_area, str):
         raise ValueError("Metro area must be a string.")
     return True
 
 
 @needs_db
-def create(state_code: str, name: str, population: int,
-           area: float, metro_area: str):
+def create(state_code: str, name: str, population: int = 0,
+           area: float = 0, metro_area: str = ''):
     """
     Create a new county entry in the test data.
     """
@@ -135,8 +147,8 @@ def create(state_code: str, name: str, population: int,
 
 
 @needs_db
-def update(state_code: str, name: str, population: int,
-           area: float, metro_area: str):
+def update(state_code: str, name: str, population: int = 0,
+           area: float = 0, metro_area: str = ''):
     """
     Update an existing county entry in the test data.
     The state code and name identify the county and cannot be changed.

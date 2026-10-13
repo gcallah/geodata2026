@@ -108,24 +108,25 @@ STATE_UPDATE_FLDS = api.model('UpdateState', {
 # Fields a state request may leave out; states.query supplies defaults.
 STATE_OPT_FLDS = (sqry.POPULATION, sqry.CAPITAL, sqry.AREA,
                   sqry.LATITUDE, sqry.LONGITUDE)
+# Fields a state PUT may change:
+STATE_UPD_FLDS = (sqry.NAME,) + STATE_OPT_FLDS
 
 
-def optional_state_flds(data: dict) -> dict:
+def optional_flds(data: dict, flds: tuple) -> dict:
     """
-    Return the optional state fields present in a request body,
-    so that any left out get their defaults from states.query.
+    Return those of flds present in a request body, so that any
+    left out get their defaults from the query module.
     """
-    return {fld: data[fld] for fld in STATE_OPT_FLDS if fld in data}
+    return {fld: data[fld] for fld in flds if fld in data}
 
 
-def state_update_args(current: dict, data: dict) -> dict:
+def update_args(current: dict, data: dict, flds: tuple) -> dict:
     """
-    Return the fields for a partial update of a state: those sent in
+    Return the fields (from flds) for a partial update: those sent in
     data replace the current ones, and the rest keep their values.
     """
     merged = {**current, **data}
-    return {fld: merged[fld] for fld in (sqry.NAME,) + STATE_OPT_FLDS
-            if fld in merged}
+    return {fld: merged[fld] for fld in flds if fld in merged}
 
 
 @api.route(STATES_EP)
@@ -160,7 +161,7 @@ class States(Resource):
         try:
             new_state = sqry.create(data.get(sqry.STATE_CODE),
                                     data.get(sqry.NAME),
-                                    **optional_state_flds(data))
+                                    **optional_flds(data, STATE_OPT_FLDS))
         except ValueError as err:
             raise wz.BadRequest(str(err))
         if new_state is None:
@@ -202,7 +203,8 @@ class State(Resource):
             raise wz.ServiceUnavailable('Database may be down.')
         try:
             updated = sqry.update(state_code,
-                                  **state_update_args(current, data))
+                                  **update_args(current, data,
+                                                STATE_UPD_FLDS))
         except ValueError as err:
             raise wz.BadRequest(str(err))
         if updated is None:
@@ -254,16 +256,20 @@ class StateFields(Resource):
 COUNTY_CREATE_FLDS = api.model('CreateCounty', {
     cqry.STATE_CODE: fields.String(required=True),
     cqry.NAME: fields.String(required=True),
-    cqry.POPULATION: fields.Integer(required=True),
-    cqry.AREA: fields.Float(required=True),
-    cqry.METRO_AREA: fields.String(required=True),
+    cqry.POPULATION: fields.Integer(),
+    cqry.AREA: fields.Float(),
+    cqry.METRO_AREA: fields.String(),
 })
 
 COUNTY_UPDATE_FLDS = api.model('UpdateCounty', {
-    cqry.POPULATION: fields.Integer(required=True),
-    cqry.AREA: fields.Float(required=True),
-    cqry.METRO_AREA: fields.String(required=True),
+    cqry.POPULATION: fields.Integer(),
+    cqry.AREA: fields.Float(),
+    cqry.METRO_AREA: fields.String(),
 })
+
+# Fields a county request may leave out; counties.query supplies
+# defaults. These are also the fields a county PUT may change.
+COUNTY_OPT_FLDS = (cqry.POPULATION, cqry.AREA, cqry.METRO_AREA)
 
 
 @api.route(COUNTIES_EP)
@@ -301,9 +307,7 @@ class Counties(Resource):
         try:
             new_county = cqry.create(data.get(cqry.STATE_CODE),
                                      data.get(cqry.NAME),
-                                     data.get(cqry.POPULATION),
-                                     data.get(cqry.AREA),
-                                     data.get(cqry.METRO_AREA))
+                                     **optional_flds(data, COUNTY_OPT_FLDS))
         except cqry.NotFoundError as err:
             raise wz.NotFound(str(err))
         except ValueError as err:
@@ -329,6 +333,7 @@ class County(Resource):
     def put(self, state_code, name):
         """
         Update an existing county.
+        Only the fields sent are changed; the rest keep their values.
         The state code and name cannot be changed.
         Requires X-User-Id and X-Auth-Code headers.
         """
@@ -342,11 +347,13 @@ class County(Resource):
             raise wz.ServiceUnavailable('Database may be down.')
         if not county_exists:
             raise wz.NotFound(f'County {name}, {state_code} not found.')
+        current = cqry.read_one(state_code, name)
+        if current is None:
+            raise wz.ServiceUnavailable('Database may be down.')
         try:
             updated = cqry.update(state_code, name,
-                                  data.get(cqry.POPULATION),
-                                  data.get(cqry.AREA),
-                                  data.get(cqry.METRO_AREA))
+                                  **update_args(current, data,
+                                                COUNTY_OPT_FLDS))
         except ValueError as err:
             raise wz.BadRequest(str(err))
         if updated is None:

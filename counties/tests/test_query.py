@@ -25,6 +25,14 @@ def valid_args(changes=None):
     return args
 
 
+# What create and update store for fields left out:
+COUNTY_DEFAULTS = {
+    qry.POPULATION: 0,
+    qry.AREA: 0,
+    qry.METRO_AREA: '',
+}
+
+
 @pytest.fixture
 def temp_county():
     yield TEST_CTY
@@ -53,6 +61,31 @@ def test_exists_missing_county(mock_is_db_up):
 def test_exists_missing_state(mock_is_db_up):
     assert 'ZZ' not in qry.COUNTY_TEST_DATA
     assert not qry.exists('ZZ', 'Autauga')
+
+
+@patch(DB_UP, return_value=True, autospec=True)
+def test_read_one(mock_is_db_up):
+    assert qry.read_one('AL', 'Autauga') == \
+        qry.COUNTY_TEST_DATA['AL']['Autauga']
+
+
+@patch(DB_UP, return_value=True, autospec=True)
+def test_read_one_returns_copy(mock_is_db_up):
+    """
+    Changing the county returned must not change the stored data.
+    """
+    before = dict(qry.COUNTY_TEST_DATA['AL']['Autauga'])
+    qry.read_one('AL', 'Autauga')[qry.POPULATION] = -1
+    assert qry.COUNTY_TEST_DATA['AL']['Autauga'] == before
+
+
+@patch(DB_UP, return_value=True, autospec=True)
+@pytest.mark.parametrize('state_code, name', [
+    ('AL', 'No Such County'),
+    ('ZZ', 'Autauga'),
+])
+def test_read_one_missing(mock_is_db_up, state_code, name):
+    assert qry.read_one(state_code, name) is None
 
 
 @patch(DB_UP, return_value=True, autospec=True)
@@ -85,6 +118,21 @@ def test_check_valid_county_no_metro_area(mock_is_db_up):
 
 
 @patch(DB_UP, return_value=True, autospec=True)
+def test_check_valid_county_code_and_name_only(mock_is_db_up):
+    assert qry.check_valid_county(TEST_ST_CODE, TEST_NAME)
+
+
+@patch(DB_UP, return_value=True, autospec=True)
+@pytest.mark.parametrize('field, val', [
+    (qry.POPULATION, 0),
+    (qry.AREA, 0),
+    (qry.METRO_AREA, ''),
+])
+def test_check_valid_county_default_ok(mock_is_db_up, field, val):
+    assert qry.check_valid_county(**valid_args({field: val}))
+
+
+@patch(DB_UP, return_value=True, autospec=True)
 def test_check_valid_county_int_area(mock_is_db_up):
     assert qry.check_valid_county(**valid_args({qry.AREA: 600}))
 
@@ -99,7 +147,6 @@ def test_check_valid_county_int_area(mock_is_db_up):
     (qry.POPULATION, -1),
     (qry.POPULATION, 1.5),
     (qry.POPULATION, True),
-    (qry.AREA, 0),
     (qry.AREA, -1.5),
     (qry.AREA, '600'),
     (qry.AREA, True),
@@ -209,6 +256,21 @@ def test_update(mock_is_db_up, temp_county):
 
 
 @patch(DB_UP, return_value=True, autospec=True)
+def test_create_code_and_name_only(mock_is_db_up, temp_county):
+    ret = qry.create(TEST_ST_CODE, TEST_NAME)
+    assert ret == COUNTY_DEFAULTS
+    assert qry.COUNTY_TEST_DATA[TEST_ST_CODE][TEST_NAME] == COUNTY_DEFAULTS
+
+
+@patch(DB_UP, return_value=True, autospec=True)
+def test_update_code_and_name_only(mock_is_db_up, temp_county):
+    qry.create(**temp_county)
+    ret = qry.update(TEST_ST_CODE, TEST_NAME)
+    assert ret == COUNTY_DEFAULTS
+    assert qry.COUNTY_TEST_DATA[TEST_ST_CODE][TEST_NAME] == COUNTY_DEFAULTS
+
+
+@patch(DB_UP, return_value=True, autospec=True)
 def test_update_leaves_other_counties(mock_is_db_up, temp_county):
     qry.create(**temp_county)
     others = deepcopy(qry.COUNTY_TEST_DATA)
@@ -280,6 +342,7 @@ def test_delete_missing_state(mock_is_db_up):
 @pytest.mark.parametrize('fn, args', [
     (qry.read, ()),
     (qry.exists, ('AL', 'Autauga')),
+    (qry.read_one, ('AL', 'Autauga')),
     (qry.has_counties, ('AL',)),
     (qry.delete, ('AL', 'Autauga')),
 ])

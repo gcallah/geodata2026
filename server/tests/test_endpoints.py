@@ -88,26 +88,28 @@ STATE_DEFAULTS = {
 }
 
 
-def test_optional_state_flds_all_present():
-    assert ep.optional_state_flds(dict(sqry.TEST_STATE)) == {
+def test_optional_flds_all_present():
+    assert ep.optional_flds(dict(sqry.TEST_STATE), ep.STATE_OPT_FLDS) == {
         fld: sqry.TEST_STATE[fld] for fld in ep.STATE_OPT_FLDS}
 
 
-def test_optional_state_flds_none_present():
-    assert ep.optional_state_flds({sqry.STATE_CODE: 'TS',
-                                   sqry.NAME: 'Test State'}) == {}
+def test_optional_flds_none_present():
+    assert ep.optional_flds({sqry.STATE_CODE: 'TS',
+                             sqry.NAME: 'Test State'},
+                            ep.STATE_OPT_FLDS) == {}
 
 
-def test_optional_state_flds_keeps_explicit_none():
+def test_optional_flds_keeps_explicit_none():
     """
     A field sent as null is passed on, so validation can reject it.
     """
-    assert ep.optional_state_flds({sqry.AREA: None}) == {sqry.AREA: None}
+    assert ep.optional_flds({sqry.AREA: None}, ep.STATE_OPT_FLDS) == {
+        sqry.AREA: None}
 
 
-def test_optional_state_flds_ignores_other_keys():
-    assert ep.optional_state_flds({'bogus': 1, sqry.AREA: 5}) == {
-        sqry.AREA: 5}
+def test_optional_flds_ignores_other_keys():
+    assert ep.optional_flds({'bogus': 1, sqry.AREA: 5},
+                            ep.STATE_OPT_FLDS) == {sqry.AREA: 5}
 
 
 @patch('states.query.is_db_up', return_value=True, autospec=True)
@@ -296,41 +298,45 @@ def test_update_state_bad_data(mock_is_db_up, existing_state):
     assert stored_states()[code] == before
 
 
-def test_state_update_args_all_sent():
-    assert ep.state_update_args(sqry.TEST_STATE, updated_fields()) \
-        == updated_fields()
+def test_update_args_all_sent():
+    assert ep.update_args(sqry.TEST_STATE, updated_fields(),
+                          ep.STATE_UPD_FLDS) == updated_fields()
 
 
-def test_state_update_args_none_sent():
+def test_update_args_none_sent():
     expected = {k: v for k, v in sqry.TEST_STATE.items()
                 if k != sqry.STATE_CODE}
-    assert ep.state_update_args(sqry.TEST_STATE, {}) == expected
+    assert ep.update_args(sqry.TEST_STATE, {}, ep.STATE_UPD_FLDS) \
+        == expected
 
 
-def test_state_update_args_some_sent():
-    args = ep.state_update_args(sqry.TEST_STATE, {sqry.AREA: 7})
+def test_update_args_some_sent():
+    args = ep.update_args(sqry.TEST_STATE, {sqry.AREA: 7},
+                          ep.STATE_UPD_FLDS)
     assert args[sqry.AREA] == 7
     assert args[sqry.NAME] == sqry.TEST_STATE[sqry.NAME]
     assert args[sqry.CAPITAL] == sqry.TEST_STATE[sqry.CAPITAL]
 
 
-def test_state_update_args_ignores_other_keys():
-    args = ep.state_update_args(sqry.TEST_STATE,
-                                {sqry.STATE_CODE: 'ZZ', 'bogus': 1})
+def test_update_args_ignores_other_keys():
+    args = ep.update_args(sqry.TEST_STATE,
+                          {sqry.STATE_CODE: 'ZZ', 'bogus': 1},
+                          ep.STATE_UPD_FLDS)
     assert sqry.STATE_CODE not in args
     assert 'bogus' not in args
 
 
-def test_state_update_args_field_missing_from_current():
+def test_update_args_field_missing_from_current():
     """
     A field neither stored nor sent is left out, so it gets its default.
     """
     current = {sqry.STATE_CODE: 'TS', sqry.NAME: 'Test State'}
-    assert ep.state_update_args(current, {}) == {sqry.NAME: 'Test State'}
+    assert ep.update_args(current, {}, ep.STATE_UPD_FLDS) == {
+        sqry.NAME: 'Test State'}
 
 
 @patch('states.query.is_db_up', return_value=True, autospec=True)
-@pytest.mark.parametrize('fld_nm', (sqry.NAME,) + ep.STATE_OPT_FLDS)
+@pytest.mark.parametrize('fld_nm', ep.STATE_UPD_FLDS)
 def test_update_state_one_field(mock_is_db_up, fld_nm, existing_state):
     code = existing_state[sqry.STATE_CODE]
     new_val = updated_fields()[fld_nm]
@@ -618,6 +624,14 @@ def updated_county_fields():
     }
 
 
+# What counties.query stores for each optional field left out:
+COUNTY_DEFAULTS = {
+    cqry.POPULATION: 0,
+    cqry.AREA: 0,
+    cqry.METRO_AREA: '',
+}
+
+
 @pytest.fixture
 def temp_county():
     yield dict(TEST_CTY)
@@ -653,6 +667,46 @@ def test_create_county(mock_is_db_up, temp_county):
     assert resp.status_code == CREATED
     assert county_exists()
     assert resp.get_json()[ep.COUNTIES_RESP] == stored_county()
+
+
+@patch(DB_UP, return_value=True, autospec=True)
+@pytest.mark.parametrize('fld_nm', ep.COUNTY_OPT_FLDS)
+def test_create_county_missing_optional(mock_is_db_up, fld_nm, temp_county):
+    del temp_county[fld_nm]
+    resp = TEST_CLIENT.post(ep.COUNTIES_EP, json=temp_county,
+                            headers=AUTH_HEADERS)
+    assert resp.status_code == CREATED
+    expected = {fld: temp_county.get(fld, COUNTY_DEFAULTS[fld])
+                for fld in ep.COUNTY_OPT_FLDS}
+    assert stored_county() == expected
+
+
+@patch(DB_UP, return_value=True, autospec=True)
+def test_create_county_code_and_name_only(mock_is_db_up, temp_county):
+    body = {cqry.STATE_CODE: CTY_ST_CODE, cqry.NAME: CTY_NAME}
+    resp = TEST_CLIENT.post(ep.COUNTIES_EP, json=body, headers=AUTH_HEADERS)
+    assert resp.status_code == CREATED
+    assert stored_county() == COUNTY_DEFAULTS
+    assert resp.get_json()[ep.COUNTIES_RESP] == COUNTY_DEFAULTS
+
+
+@patch(DB_UP, return_value=True, autospec=True)
+@pytest.mark.parametrize('fld_nm', [cqry.STATE_CODE, cqry.NAME])
+def test_create_county_missing_required(mock_is_db_up, fld_nm, temp_county):
+    del temp_county[fld_nm]
+    resp = TEST_CLIENT.post(ep.COUNTIES_EP, json=temp_county,
+                            headers=AUTH_HEADERS)
+    assert resp.status_code == BAD_REQUEST
+    assert not county_exists()
+
+
+@patch(DB_UP, return_value=True, autospec=True)
+def test_create_county_null_optional(mock_is_db_up, temp_county):
+    temp_county[cqry.AREA] = None
+    resp = TEST_CLIENT.post(ep.COUNTIES_EP, json=temp_county,
+                            headers=AUTH_HEADERS)
+    assert resp.status_code == BAD_REQUEST
+    assert not county_exists()
 
 
 @patch(DB_UP, return_value=True, autospec=True)
@@ -736,6 +790,53 @@ def test_update_county(mock_is_db_up, existing_county):
     assert resp.status_code == OK
     assert stored_county() == updated_county_fields()
     assert resp.get_json()[ep.COUNTIES_RESP] == updated_county_fields()
+
+
+def existing_county_flds(county):
+    """
+    The stored fields of a county created from the given record.
+    """
+    return {fld: county[fld] for fld in ep.COUNTY_OPT_FLDS}
+
+
+@patch(DB_UP, return_value=True, autospec=True)
+@pytest.mark.parametrize('fld_nm', ep.COUNTY_OPT_FLDS)
+def test_update_county_one_field(mock_is_db_up, fld_nm, existing_county):
+    new_val = updated_county_fields()[fld_nm]
+    resp = TEST_CLIENT.put(county_url(CTY_ST_CODE, CTY_NAME),
+                           json={fld_nm: new_val}, headers=AUTH_HEADERS)
+    assert resp.status_code == OK
+    expected = {**existing_county_flds(existing_county), fld_nm: new_val}
+    assert stored_county() == expected
+    assert resp.get_json()[ep.COUNTIES_RESP] == expected
+
+
+@patch(DB_UP, return_value=True, autospec=True)
+def test_update_county_empty_body(mock_is_db_up, existing_county):
+    resp = TEST_CLIENT.put(county_url(CTY_ST_CODE, CTY_NAME), json={},
+                           headers=AUTH_HEADERS)
+    assert resp.status_code == OK
+    assert stored_county() == existing_county_flds(existing_county)
+
+
+@patch(DB_UP, return_value=True, autospec=True)
+def test_update_county_null_field(mock_is_db_up, existing_county):
+    resp = TEST_CLIENT.put(county_url(CTY_ST_CODE, CTY_NAME),
+                           json={cqry.METRO_AREA: None},
+                           headers=AUTH_HEADERS)
+    assert resp.status_code == BAD_REQUEST
+    assert stored_county() == existing_county_flds(existing_county)
+
+
+@patch('counties.query.read_one', return_value=None, autospec=True)
+@patch(DB_UP, return_value=True, autospec=True)
+def test_update_county_db_down_during_read(mock_is_db_up, mock_read_one,
+                                           existing_county):
+    resp = TEST_CLIENT.put(county_url(CTY_ST_CODE, CTY_NAME),
+                           json=updated_county_fields(),
+                           headers=AUTH_HEADERS)
+    assert resp.status_code == SERVICE_UNAVAILABLE
+    assert stored_county() == existing_county_flds(existing_county)
 
 
 @patch(DB_UP, return_value=True, autospec=True)
