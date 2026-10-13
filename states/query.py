@@ -63,6 +63,17 @@ def read():
 
 
 @needs_db
+def read_one(state_code: str):
+    """
+    Return the state with this code, or None if there is none.
+    """
+    state = dbc.read_one(STATES_COLLECT, {STATE_CODE: state_code})
+    if state is not None:
+        del state[dbc.MONGO_ID]
+    return state
+
+
+@needs_db
 def exists(state_code: str):
     """
     Check if a state exists.

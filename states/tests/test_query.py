@@ -84,6 +84,22 @@ def test_query(mock_is_db_up):
     assert isinstance(states, dict)
 
 
+@patch('states.query.is_db_up', return_value=True, autospec=True)
+def test_read_one(mock_is_db_up):
+    assert qry.read_one('AL') == stored_states()['AL']
+
+
+@patch('states.query.is_db_up', return_value=True, autospec=True)
+def test_read_one_no_mongo_id(mock_is_db_up):
+    assert dbc.MONGO_ID not in qry.read_one('AL')
+
+
+@patch('states.query.is_db_up', return_value=True, autospec=True)
+def test_read_one_missing(mock_is_db_up):
+    assert 'ZZ' not in stored_states()
+    assert qry.read_one('ZZ') is None
+
+
 @pytest.fixture
 def temp_state():
     yield TEST_ST
@@ -259,6 +275,7 @@ def test_needs_db_keeps_name():
 @pytest.mark.parametrize('fn, args', [
     (qry.read, ()),
     (qry.exists, ('AL',)),
+    (qry.read_one, ('AL',)),
     (qry.delete, ('AL',)),
 ])
 def test_db_down_returns_none(fn, args):

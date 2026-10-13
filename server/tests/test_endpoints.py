@@ -296,27 +296,78 @@ def test_update_state_bad_data(mock_is_db_up, existing_state):
     assert stored_states()[code] == before
 
 
+def test_state_update_args_all_sent():
+    assert ep.state_update_args(sqry.TEST_STATE, updated_fields()) \
+        == updated_fields()
+
+
+def test_state_update_args_none_sent():
+    expected = {k: v for k, v in sqry.TEST_STATE.items()
+                if k != sqry.STATE_CODE}
+    assert ep.state_update_args(sqry.TEST_STATE, {}) == expected
+
+
+def test_state_update_args_some_sent():
+    args = ep.state_update_args(sqry.TEST_STATE, {sqry.AREA: 7})
+    assert args[sqry.AREA] == 7
+    assert args[sqry.NAME] == sqry.TEST_STATE[sqry.NAME]
+    assert args[sqry.CAPITAL] == sqry.TEST_STATE[sqry.CAPITAL]
+
+
+def test_state_update_args_ignores_other_keys():
+    args = ep.state_update_args(sqry.TEST_STATE,
+                                {sqry.STATE_CODE: 'ZZ', 'bogus': 1})
+    assert sqry.STATE_CODE not in args
+    assert 'bogus' not in args
+
+
+def test_state_update_args_field_missing_from_current():
+    """
+    A field neither stored nor sent is left out, so it gets its default.
+    """
+    current = {sqry.STATE_CODE: 'TS', sqry.NAME: 'Test State'}
+    assert ep.state_update_args(current, {}) == {sqry.NAME: 'Test State'}
+
+
 @patch('states.query.is_db_up', return_value=True, autospec=True)
-def test_update_state_name_only(mock_is_db_up, existing_state):
+@pytest.mark.parametrize('fld_nm', (sqry.NAME,) + ep.STATE_OPT_FLDS)
+def test_update_state_one_field(mock_is_db_up, fld_nm, existing_state):
     code = existing_state[sqry.STATE_CODE]
-    resp = TEST_CLIENT.put(state_url(code), json={sqry.NAME: 'New Name'},
+    new_val = updated_fields()[fld_nm]
+    resp = TEST_CLIENT.put(state_url(code), json={fld_nm: new_val},
                            headers=AUTH_HEADERS)
     assert resp.status_code == OK
-    expected = {sqry.STATE_CODE: code, sqry.NAME: 'New Name',
-                **STATE_DEFAULTS}
+    expected = {**existing_state, fld_nm: new_val}
     assert stored_states()[code] == expected
     assert resp.get_json()[ep.STATES_RESP] == expected
 
 
 @patch('states.query.is_db_up', return_value=True, autospec=True)
-def test_update_state_missing_name(mock_is_db_up, existing_state):
+def test_update_state_empty_body(mock_is_db_up, existing_state):
     code = existing_state[sqry.STATE_CODE]
-    before = dict(stored_states()[code])
-    body = updated_fields()
-    del body[sqry.NAME]
-    resp = TEST_CLIENT.put(state_url(code), json=body, headers=AUTH_HEADERS)
+    resp = TEST_CLIENT.put(state_url(code), json={}, headers=AUTH_HEADERS)
+    assert resp.status_code == OK
+    assert stored_states()[code] == existing_state
+
+
+@patch('states.query.is_db_up', return_value=True, autospec=True)
+def test_update_state_null_field(mock_is_db_up, existing_state):
+    code = existing_state[sqry.STATE_CODE]
+    resp = TEST_CLIENT.put(state_url(code), json={sqry.CAPITAL: None},
+                           headers=AUTH_HEADERS)
     assert resp.status_code == BAD_REQUEST
-    assert stored_states()[code] == before
+    assert stored_states()[code] == existing_state
+
+
+@patch('states.query.read_one', return_value=None, autospec=True)
+@patch('states.query.is_db_up', return_value=True, autospec=True)
+def test_update_state_db_down_during_read(mock_is_db_up, mock_read_one,
+                                          existing_state):
+    code = existing_state[sqry.STATE_CODE]
+    resp = TEST_CLIENT.put(state_url(code), json=updated_fields(),
+                           headers=AUTH_HEADERS)
+    assert resp.status_code == SERVICE_UNAVAILABLE
+    assert stored_states()[code] == existing_state
 
 
 @patch('states.query.is_db_up', return_value=True, autospec=True)

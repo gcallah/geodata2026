@@ -97,7 +97,7 @@ STATE_CREATE_FLDS = api.model('CreateState', {
 })
 
 STATE_UPDATE_FLDS = api.model('UpdateState', {
-    sqry.NAME: fields.String(required=True),
+    sqry.NAME: fields.String(),
     sqry.POPULATION: fields.Integer(),
     sqry.CAPITAL: fields.String(),
     sqry.AREA: fields.Float(),
@@ -116,6 +116,16 @@ def optional_state_flds(data: dict) -> dict:
     so that any left out get their defaults from states.query.
     """
     return {fld: data[fld] for fld in STATE_OPT_FLDS if fld in data}
+
+
+def state_update_args(current: dict, data: dict) -> dict:
+    """
+    Return the fields for a partial update of a state: those sent in
+    data replace the current ones, and the rest keep their values.
+    """
+    merged = {**current, **data}
+    return {fld: merged[fld] for fld in (sqry.NAME,) + STATE_OPT_FLDS
+            if fld in merged}
 
 
 @api.route(STATES_EP)
@@ -174,6 +184,7 @@ class State(Resource):
     def put(self, state_code):
         """
         Update an existing state.
+        Only the fields sent are changed; the rest keep their values.
         The state code cannot be changed.
         Requires X-User-Id and X-Auth-Code headers.
         """
@@ -186,9 +197,12 @@ class State(Resource):
             raise wz.ServiceUnavailable('Database may be down.')
         if not state_exists:
             raise wz.NotFound(f'State {state_code} not found.')
+        current = sqry.read_one(state_code)
+        if current is None:
+            raise wz.ServiceUnavailable('Database may be down.')
         try:
-            updated = sqry.update(state_code, data.get(sqry.NAME),
-                                  **optional_state_flds(data))
+            updated = sqry.update(state_code,
+                                  **state_update_args(current, data))
         except ValueError as err:
             raise wz.BadRequest(str(err))
         if updated is None:
