@@ -345,6 +345,11 @@ def test_check_valid_state_bad_lat_long(mock_is_db_up, fld_nm, val):
         qry.check_valid_state(**state_args(**{fld_nm: val}))
 
 
+@pytest.mark.skip(reason="This test is not working right now; fix later!")
+def test_that_is_not_working_right_now():
+    assert False
+
+
 @patch('states.query.is_db_up', return_value=True, autospec=True)
 def test_create_stores_lat_long(mock_is_db_up, temp_state):
     ret = qry.create(**temp_state)
