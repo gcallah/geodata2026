@@ -15,10 +15,12 @@ import counties.query as cqry
 import security.security as sec
 import states.fields as sflds
 import states.query as sqry
+import web.pages as pages
 
 app = Flask(__name__)
 CORS(app)
 api = Api(app)
+app.register_blueprint(pages.web)
 
 ENDPOINT_EP = '/endpoints'
 ENDPOINT_RESP = 'Available endpoints'

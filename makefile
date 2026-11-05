@@ -7,6 +7,7 @@ SEC_DIR = security
 COMMON_DIR = common
 STATES_DIR = states
 COUNTIES_DIR = counties
+WEB_DIR = web
 REQ_DIR = .
 
 FORCE:
@@ -23,6 +24,7 @@ all_tests: FORCE
 	cd $(COMMON_DIR); make tests
 	cd $(STATES_DIR); make tests
 	cd $(COUNTIES_DIR); make tests
+	cd $(WEB_DIR); make tests
 
 dev_env: FORCE
 	pip install -r $(REQ_DIR)/requirements-dev.txt
