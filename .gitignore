@@ -6,6 +6,9 @@ __pycache__/
 # virtual env
 geodata2026-venv
 
+# private keys
+keys.txt
+
 # vim files
 *~
 *.swp
